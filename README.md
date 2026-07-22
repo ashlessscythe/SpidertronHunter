@@ -8,15 +8,15 @@ No manual patrol routes required.
 
 ## Gallery
 
-![Enable Hunter AI on multiple spidertrons](https://raw.githubusercontent.com/ashlessscythe/SpidertronHunter/public/media/activation_multiple_trons.mp4)
+![Enable Hunter AI on multiple spidertrons](media/activate.gif)
 
 *Multi-select activation — toggle Hunter AI on several spidertrons at once.*
 
-![Combat style dropdown in the spidertron GUI](https://raw.githubusercontent.com/ashlessscythe/SpidertronHunter/public/media/combat_style_gui.png)
+![Combat style dropdown in the spidertron GUI](media/combat_style_gui.png)
 
 *Per-spidertron combat style: Hold / Strafe / Circle / Flank.*
 
-Same links work when pasting this README into the Mod Portal description.
+For the Mod Portal description, use absolute `raw.githubusercontent.com` URLs to the same files on the `public` branch.
 
 ## Requirements
 
