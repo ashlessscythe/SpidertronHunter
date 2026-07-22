@@ -20,8 +20,8 @@ should_exclude() {
   case "${rel}" in
     .git|.git/*|.github|.github/*|tests|tests/*|docs|docs/*|dist|dist/*) return 0 ;;
     .gitattributes|.gitignore|CONTRIBUTING.md) return 0 ;;
-    # Maintainer scripts / tooling — Mod Portal rejects executables and .sh is not needed in-game
-    *.sh|scripts/package_mod.sh) return 0 ;;
+    # Maintainer scripts / binaries — Mod Portal rejects executables; not needed in-game
+    *.sh|*.ps1|*.py|scripts/package_mod.sh) return 0 ;;
     graphics/shortcut/hunter-source.png) return 0 ;;
     *.zip|*.exe|*.dll|*.so|*.dylib|*.bat|*.cmd|*.com) return 0 ;;
   esac

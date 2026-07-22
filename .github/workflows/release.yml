@@ -114,7 +114,7 @@ jobs:
           fi
 
           # Mod Portal rejects packages that contain executable files (or common binary/script names).
-          BAD_NAMES="$(unzip -Z1 "${ZIP}" | grep -Ei '\.(sh|exe|dll|so|dylib|bat|cmd|com)$' || true)"
+          BAD_NAMES="$(unzip -Z1 "${ZIP}" | grep -Ei '\.(sh|ps1|py|exe|dll|so|dylib|bat|cmd|com)$' || true)"
           if [[ -n "${BAD_NAMES}" ]]; then
             echo "Archive contains files Mod Portal disallows:"
             printf '%s\n' "${BAD_NAMES}"

@@ -29,7 +29,7 @@ jobs:
           PREFIX=$(python3 -c "import json; i=json.load(open('info.json')); print(f\"{i['name']}_{i['version']}/\")")
           unzip -l "dist/${ZIP}" | grep -F "${PREFIX}info.json"
           # Mod Portal rejects executables / shell scripts in the package
-          BAD_NAMES="$(unzip -Z1 "dist/${ZIP}" | grep -Ei '\.(sh|exe|dll|so|dylib|bat|cmd|com)$' || true)"
+          BAD_NAMES="$(unzip -Z1 "dist/${ZIP}" | grep -Ei '\.(sh|ps1|py|exe|dll|so|dylib|bat|cmd|com)$' || true)"
           if [[ -n "${BAD_NAMES}" ]]; then
             echo "Portal zip must not contain executables or shell scripts:"
             printf '%s\n' "${BAD_NAMES}"
