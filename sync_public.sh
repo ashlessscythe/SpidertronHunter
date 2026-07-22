@@ -15,6 +15,5 @@ fi
 git switch public
 git reset --hard dev
 git push --force
-git switch public
-
+git switch dev
 echo "Public branch synced with dev successfully!"

@@ -2,6 +2,12 @@
 
 All notable changes to Spidertron Hunter are documented here.
 
+## [0.1.13] — 2026-07-22
+
+### Added
+
+- README / Mod Portal gallery with activation demo and combat-style GUI screenshot (`media/`, excluded from the release zip).
+
 ## [0.1.12] — 2026-07-22
 
 ### Fixed

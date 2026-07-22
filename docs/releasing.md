@@ -23,6 +23,7 @@ Maintainer guide for publishing a new version.
 - Archive must contain exactly one top-level folder: `SpidertronHunter_<version>/`
 - Tag must match `info.json` version (`v0.1.9` ↔ `0.1.9`)
 - No executables or scripts in the ZIP (Mod Portal rejects them); packaging strips the execute bit and excludes `*.sh` / `*.ps1` / `*.py` / `*.exe` / `*.bat` and similar
+- Gallery assets under `media/` are repo-only (README / Mod Portal description) and are omitted from the ZIP
 
 ## Manual / dry-run
 

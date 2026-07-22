@@ -1,6 +1,6 @@
 {
   "name": "SpidertronHunter",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "title": "Spidertron Hunter",
   "author": "Tony",
   "description": "Autonomous Spidertron AI that searches for enemy bases, attacks targets, returns home, and can optionally repair and restock.",

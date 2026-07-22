@@ -6,6 +6,18 @@ Enable Hunter AI on a spidertron and it will search for enemies, path around lak
 
 No manual patrol routes required.
 
+## Gallery
+
+![Enable Hunter AI on multiple spidertrons](https://raw.githubusercontent.com/ashlessscythe/SpidertronHunter/public/media/activation_multiple_trons.mp4)
+
+*Multi-select activation — toggle Hunter AI on several spidertrons at once.*
+
+![Combat style dropdown in the spidertron GUI](https://raw.githubusercontent.com/ashlessscythe/SpidertronHunter/public/media/combat_style_gui.png)
+
+*Per-spidertron combat style: Hold / Strafe / Circle / Flank.*
+
+Same links work when pasting this README into the Mod Portal description.
+
 ## Requirements
 
 - Factorio **2.1**

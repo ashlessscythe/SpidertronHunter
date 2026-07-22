@@ -18,7 +18,7 @@ mkdir -p "${OUT_DIR}/${FOLDER}"
 should_exclude() {
   local rel="$1"
   case "${rel}" in
-    .git|.git/*|.github|.github/*|tests|tests/*|docs|docs/*|dist|dist/*) return 0 ;;
+    .git|.git/*|.github|.github/*|tests|tests/*|docs|docs/*|dist|dist/*|media|media/*) return 0 ;;
     .gitattributes|.gitignore|CONTRIBUTING.md) return 0 ;;
     # Maintainer scripts / binaries — Mod Portal rejects executables; not needed in-game
     *.sh|*.ps1|*.py|scripts/package_mod.sh) return 0 ;;
