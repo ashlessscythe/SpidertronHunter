@@ -46,7 +46,7 @@ function M.update_restock(ai)
   local cfg = settings_mod.get()
   local elapsed = game.tick - ai.state_entered_tick
   if elapsed >= cfg.max_restock_ticks then
-    util.debug_log("restock timeout for " .. tostring(ai.unit_number))
+    util.debug_log("restock timeout", spidertron)
     return true
   end
 

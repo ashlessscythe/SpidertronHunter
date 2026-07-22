@@ -1,4 +1,6 @@
 --- Finite state machine registry and dispatch.
+local util = require("scripts.util")
+
 local States = {}
 
 States.IDLE = "idle"
@@ -9,6 +11,15 @@ States.ATTACKING = "attacking"
 States.RETURNING = "returning"
 States.RESTOCKING = "restocking"
 States.WAITING = "waiting"
+
+-- Skip patrol↔search chatter; only surface meaningful phase changes.
+local DEBUG_FLYING = {
+  moving = true,
+  attacking = true,
+  returning = true,
+  restocking = true,
+  waiting = true,
+}
 
 --- @type table<string, {enter: fun(ai: table), update: fun(ai: table): string?, exit: fun(ai: table)}>
 local handlers = {}
@@ -39,8 +50,8 @@ function States.transition(ai, new_state)
   if neu then
     neu.enter(ai)
   end
-  if storage.settings_cache and storage.settings_cache.debug_mode then
-    log(string.format("[SpidertronHunter] spider %s -> %s", tostring(ai.unit_number), new_state))
+  if DEBUG_FLYING[new_state] then
+    util.debug_log(new_state, ai)
   end
 end
 

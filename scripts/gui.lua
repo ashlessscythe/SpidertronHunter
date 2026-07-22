@@ -184,7 +184,7 @@ function M.on_gui_selection_state_changed(event)
   ai.set_combat_style(spidertron, style)
   -- Also update global default so new hunters match the last GUI choice.
   -- Per-spider override is authoritative for this entity via ai.combat_style.
-  util.debug_log("combat style #" .. tostring(spidertron.unit_number) .. " -> " .. style)
+  util.debug_log("style → " .. style, spidertron)
 end
 
 M.STYLE_ORDER = STYLE_ORDER

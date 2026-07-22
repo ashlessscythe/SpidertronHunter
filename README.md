@@ -33,7 +33,10 @@ Patrol → Search → Move → Attack (kite) → linger / retreat → Return hom
 - **Move:** vanilla autopilot, lake-aware via `request_path` when needed
 - **Attack:** preferred combat range; styles `hold` / `strafe` / `circle` / `flank`; acid puddle avoidance
 - **Retreat:** configurable hull/shield % threshold forces a return home
+- **Linger:** after a fight clears, keep scanning locally briefly (default 15s) before returning home
 - **Restock:** waits on logistics/repairs with a hard timeout (never stuck forever)
+- **Persistence:** Hunter AI stays enabled through combat, return home, and restock — only an explicit disable turns it off
+- **Debug:** `sh-debug-mode` shows short flying text over the spidertron for major state changes
 
 ## Settings
 
@@ -43,7 +46,7 @@ All important options are **runtime-global** (Map settings → Mod settings):
 |---------|---------|
 | Search radius / max pursuit | How far to look / how far from home to chase |
 | Scan interval / budget | UPS-facing scan throttles |
-| Return home + post-combat linger | Clear an area before heading home |
+| Return home + post-combat linger | Clear an area before heading home (default linger 15s) |
 | Tactical retreat health % + shields | Bail out before dying |
 | Combat range / style / acid avoid | Kiting behavior |
 | Restock / repair / max wait | Home logistics |

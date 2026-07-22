@@ -161,10 +161,36 @@ function util.flying_text(player, text, position)
   })
 end
 
+--- Flying text over a spidertron when debug mode is on (also writes to the log).
 --- @param msg string
-function util.debug_log(msg)
-  if storage.settings_cache and storage.settings_cache.debug_mode then
-    log("[SpidertronHunter] " .. msg)
+--- @param at LuaEntity|table|nil entity or ai table (needs .entity)
+function util.debug_log(msg, at)
+  if not storage.settings_cache or not storage.settings_cache.debug_mode then
+    return
+  end
+  log("[SpidertronHunter] " .. msg)
+
+  local entity
+  if at then
+    if at.object_name == "LuaEntity" then
+      entity = at
+    elseif at.entity then
+      entity = at.entity
+    end
+  end
+  if not entity or not entity.valid then
+    return
+  end
+
+  local position = entity.position
+  local surface_index = entity.surface_index
+  for _, player in pairs(game.connected_players) do
+    if player.valid and player.surface_index == surface_index then
+      player.create_local_flying_text({
+        text = msg,
+        position = position,
+      })
+    end
   end
 end
 

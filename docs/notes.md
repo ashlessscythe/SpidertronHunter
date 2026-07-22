@@ -92,8 +92,8 @@ home; once deployed (>64 tiles from home), accept any enemy within search_radius
 
 ## Post-combat linger
 
-`sh-post-combat-linger-ticks` (default 1800) delays RETURNING so hunters clear
-camps instead of snapping home the instant the last biter dies.
+`sh-post-combat-linger-ticks` (default 900 / 15s; was 1800) delays RETURNING so
+hunters clear camps instead of snapping home the instant the last biter dies.
 
 ## Shortcut icon
 
@@ -134,3 +134,22 @@ small, each spider spent it on multiple leg requests, and budget misses fell bac
 to direct autopilot into water. Fix: one path request per spider, queue overflows,
 retry when the engine says try-again-later, and re-path if a spider stops making
 progress for ~3 seconds.
+
+## Debug flying text (2026-07-21)
+
+`sh-debug-mode` shows short flying text over the spidertron (not chat). Only
+meaningful phases: moving / attacking / returning / restocking / waiting, plus
+retreat and restock timeout. Patrol↔search chatter is suppressed. Still writes
+to the Factorio log.
+
+## Toggle debounce + keep hunting (2026-07-21)
+
+Hotkey + toolbar both fired (`custom-input` and `on_lua_shortcut` via
+`associated_control_input`), so one press enabled then immediately disabled.
+Debounce to one toggle per player per tick.
+
+State handlers no longer transition to IDLE on a transient invalid entity — only
+explicit disable clears Hunter AI. After combat / return home / restock the spider
+stays enabled and resumes PATROL. Think loop recovers stale entity refs via
+`get_entity_by_unit_number` before dropping AI; shortcut sync removed from the
+hot think path (sync on enable/disable/selection only).

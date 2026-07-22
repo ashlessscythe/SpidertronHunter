@@ -113,8 +113,8 @@ local function check_tactical_retreat(ai)
     ai.post_combat_since = nil
     ai.retreating = true
     util.debug_log(
-      "tactical retreat #" .. tostring(ai.unit_number)
-        .. " defense=" .. string.format("%.0f", ratio * 100) .. "%"
+      "retreat " .. string.format("%.0f", ratio * 100) .. "%",
+      spidertron
     )
     return States.RETURNING
   end
@@ -358,7 +358,7 @@ States.register(States.PATROL, {
   update = function(ai)
     local spidertron = ai.entity
     if not util.is_valid_spidertron(spidertron) then
-      return States.IDLE
+      return
     end
     local retreat = check_tactical_retreat(ai)
     if retreat then
@@ -384,7 +384,7 @@ States.register(States.SEARCH, {
   update = function(ai)
     local spidertron = ai.entity
     if not util.is_valid_spidertron(spidertron) then
-      return States.IDLE
+      return
     end
     local retreat = check_tactical_retreat(ai)
     if retreat then
@@ -430,7 +430,7 @@ States.register(States.MOVING, {
   update = function(ai)
     local spidertron = ai.entity
     if not util.is_valid_spidertron(spidertron) then
-      return States.IDLE
+      return
     end
     local retreat = check_tactical_retreat(ai)
     if retreat then
@@ -474,7 +474,7 @@ States.register(States.ATTACKING, {
   update = function(ai)
     local spidertron = ai.entity
     if not util.is_valid_spidertron(spidertron) then
-      return States.IDLE
+      return
     end
     local retreat = check_tactical_retreat(ai)
     if retreat then
@@ -521,7 +521,7 @@ States.register(States.RETURNING, {
   update = function(ai)
     local spidertron = ai.entity
     if not util.is_valid_spidertron(spidertron) then
-      return States.IDLE
+      return
     end
     if spidertron.surface_index ~= ai.home.surface_index then
       ai.wait_reason = "wrong-surface"
@@ -568,7 +568,7 @@ States.register(States.WAITING, {
   update = function(ai)
     local spidertron = ai.entity
     if not util.is_valid_spidertron(spidertron) then
-      return States.IDLE
+      return
     end
 
     local arrived = not spidertron.autopilot_destination and not spidertron.follow_target
@@ -703,8 +703,17 @@ function M.think_all()
   local n = cfg.spiders_per_think
   local from = storage.think_cursor
   local next_key = util.for_n_of(storage.spiders, from, n, function(ai)
-    if not ai or not ai.entity or not ai.entity.valid then
+    if not ai then
       return nil, true -- delete
+    end
+    -- Recover a stale entity ref before giving up (replacement races, etc.).
+    if not ai.entity or not ai.entity.valid then
+      local recovered = ai.unit_number and game.get_entity_by_unit_number(ai.unit_number)
+      if recovered and util.is_valid_spidertron(recovered) then
+        ai.entity = recovered
+      else
+        return nil, true -- delete — truly gone
+      end
     end
     if ai.state ~= States.IDLE then
       States.update(ai)
@@ -712,7 +721,6 @@ function M.think_all()
   end)
   storage.think_cursor = next_key
   targeting.prune(4)
-  shortcut.sync_all()
 end
 
 return M

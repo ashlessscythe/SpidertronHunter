@@ -99,23 +99,32 @@ end, {
   { filter = "type", type = "spider-unit" },
 })
 
-script.on_event("sh-toggle-autonomy", function(event)
-  local player = game.get_player(event.player_index)
-  if player then
-    ai.toggle_for_player(player)
-    shortcut.sync_player(player)
+-- Debounce: associated_control_input can fire both the custom-input event and
+-- on_lua_shortcut on one keypress. Handling either alone can miss click or key.
+local last_toggle_tick = {}
+
+local function toggle_autonomy(player)
+  if not player or not player.valid then
+    return
   end
+  local tick = game.tick
+  if last_toggle_tick[player.index] == tick then
+    return
+  end
+  last_toggle_tick[player.index] = tick
+  ai.toggle_for_player(player)
+  shortcut.sync_player(player)
+end
+
+script.on_event("sh-toggle-autonomy", function(event)
+  toggle_autonomy(game.get_player(event.player_index))
 end)
 
 script.on_event(defines.events.on_lua_shortcut, function(event)
   if event.prototype_name ~= "sh-toggle-autonomy" then
     return
   end
-  local player = game.get_player(event.player_index)
-  if player then
-    ai.toggle_for_player(player)
-    shortcut.sync_player(player)
-  end
+  toggle_autonomy(game.get_player(event.player_index))
 end)
 
 -- Keep toolbar highlight in sync with remote selection.
