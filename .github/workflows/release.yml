@@ -113,6 +113,25 @@ jobs:
             exit 1
           fi
 
+          # Mod Portal rejects packages that contain executable files (or common binary/script names).
+          BAD_NAMES="$(unzip -Z1 "${ZIP}" | grep -Ei '\.(sh|exe|dll|so|dylib|bat|cmd|com)$' || true)"
+          if [[ -n "${BAD_NAMES}" ]]; then
+            echo "Archive contains files Mod Portal disallows:"
+            printf '%s\n' "${BAD_NAMES}"
+            exit 1
+          fi
+
+          BAD_MODE="$(unzip -Z "${ZIP}" | awk '
+            NR <= 2 { next }
+            $1 ~ /^d/ { next }
+            $1 ~ /x/ { print }
+          ')"
+          if [[ -n "${BAD_MODE}" ]]; then
+            echo "Archive contains files with the execute bit set (Mod Portal rejects these):"
+            printf '%s\n' "${BAD_MODE}"
+            exit 1
+          fi
+
           echo "Archive OK: ${ZIP} → ${EXPECTED_PREFIX}"
 
       - name: Upload artifact
