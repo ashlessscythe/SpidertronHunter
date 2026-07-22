@@ -1,21 +1,17 @@
 --- storage schema, destroy registration, configuration migrations.
 local util = require("scripts.util")
 local pathfinder = require("scripts.pathfinder")
+local schema = require("scripts.schema")
 
 local M = {}
 
 function M.init_storage()
-  storage.spiders = storage.spiders or {}
-  storage.enemy_cache = storage.enemy_cache or {}
-  storage.target_claims = storage.target_claims or {}
-  storage.destroy_regs = storage.destroy_regs or {}
-  storage.path_requests = storage.path_requests or {}
-  storage.path_statuses = storage.path_statuses or {}
-  storage.path_queue = storage.path_queue or {}
-  storage.scan_cursor = storage.scan_cursor or nil
-  storage.think_cursor = storage.think_cursor or nil
-  storage.settings_cache = storage.settings_cache or {}
-  storage.next_cache_id = storage.next_cache_id or 1
+  schema.ensure_storage()
+end
+
+--- Full schema migrate used by versioned migration scripts.
+function M.migrate()
+  schema.migrate_ai_records()
 end
 
 --- @param spidertron LuaEntity

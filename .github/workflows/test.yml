@@ -1,0 +1,30 @@
+name: Tests
+
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+
+jobs:
+  pure-lua:
+    name: Pure Lua tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Lua
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lua5.4
+          sudo ln -sf "$(command -v lua5.4)" /usr/local/bin/lua
+      - name: Run tests
+        run: lua tests/run.lua
+      - name: Smoke-test packaging
+        run: |
+          chmod +x scripts/package_mod.sh
+          sudo apt-get install -y zip
+          ./scripts/package_mod.sh dist
+          ZIP=$(python3 -c "import json; i=json.load(open('info.json')); print(f\"{i['name']}_{i['version']}.zip\")")
+          unzip -l "dist/${ZIP}" | head -20
+          # Portal requires top-level folder ModName_Version/
+          PREFIX=$(python3 -c "import json; i=json.load(open('info.json')); print(f\"{i['name']}_{i['version']}/\")")
+          unzip -l "dist/${ZIP}" | grep -F "${PREFIX}info.json"

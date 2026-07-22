@@ -1,0 +1,104 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      create_github_release:
+        description: "Create a GitHub Release with the portal zip attached"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    name: Pure Lua tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Lua
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lua5.4
+          sudo ln -sf "$(command -v lua5.4)" /usr/local/bin/lua
+
+      - name: Run tests
+        run: lua tests/run.lua
+
+  package:
+    name: Package mod portal zip
+    needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      zip_name: ${{ steps.meta.outputs.zip_name }}
+      version: ${{ steps.meta.outputs.version }}
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read mod metadata
+        id: meta
+        run: |
+          NAME=$(python3 -c "import json; print(json.load(open('info.json'))['name'])")
+          VERSION=$(python3 -c "import json; print(json.load(open('info.json'))['version'])")
+          ZIP="${NAME}_${VERSION}.zip"
+          echo "name=${NAME}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "zip_name=${ZIP}" >> "$GITHUB_OUTPUT"
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify tag matches info.json (tag pushes)
+        if: github.ref_type == 'tag'
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${{ steps.meta.outputs.version }}"
+          # Accept v0.1.9 or 0.1.9
+          NORMALIZED="${TAG#v}"
+          if [[ "${NORMALIZED}" != "${VERSION}" ]]; then
+            echo "Tag ${TAG} does not match info.json version ${VERSION}"
+            exit 1
+          fi
+
+      - name: Build portal zip
+        run: |
+          chmod +x scripts/package_mod.sh
+          ./scripts/package_mod.sh dist
+          test -f "dist/${{ steps.meta.outputs.zip_name }}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.meta.outputs.zip_name }}
+          path: dist/${{ steps.meta.outputs.zip_name }}
+          if-no-files-found: error
+
+      - name: Create GitHub Release
+        if: >
+          github.ref_type == 'tag' ||
+          (github.event_name == 'workflow_dispatch' && inputs.create_github_release)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: Spidertron Hunter ${{ steps.meta.outputs.version }}
+          draft: ${{ github.ref_type != 'tag' }}
+          generate_release_notes: true
+          files: dist/${{ steps.meta.outputs.zip_name }}
+          body: |
+            Factorio Mod Portal package: `${{ steps.meta.outputs.zip_name }}`
+
+            Upload this zip at https://mods.factorio.com (Mod → Releases → Upload).
+
+            The archive contains a single top-level folder `${{ steps.meta.outputs.name }}_${{ steps.meta.outputs.version }}/` as required by the portal.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

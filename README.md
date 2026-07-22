@@ -75,6 +75,25 @@ Hunter AI and manual patrol schedules are separate control modes; do not run bot
 
 This project is developed with AI-assisted tooling. All architecture, testing, and release decisions are reviewed before publication.
 
+### Tests
+
+```bash
+lua tests/run.lua
+```
+
+### Packaging for Mod Portal
+
+```bash
+./scripts/package_mod.sh dist
+# → dist/SpidertronHunter_<version>.zip
+```
+
+GitHub Actions:
+- `.github/workflows/test.yml` — runs pure Lua tests on push/PR
+- `.github/workflows/release.yml` — on `v*` tags (or manual dispatch), builds `SpidertronHunter_0.x.x.zip` and attaches it to a GitHub Release ready for Mod Portal upload
+
+Tag example: bump `info.json` version, commit, then `git tag v0.1.9 && git push origin v0.1.9`.
+
 ## Install (dev)
 
 Symlink or copy this folder into your Factorio `mods` directory as `SpidertronHunter`.
