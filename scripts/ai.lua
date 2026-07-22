@@ -9,6 +9,7 @@ local targeting = require("scripts.targeting")
 local logistics = require("scripts.logistics")
 local combat = require("scripts.combat")
 local shortcut = require("scripts.shortcut")
+local pathfinder = require("scripts.pathfinder")
 
 local M = {}
 
@@ -84,9 +85,12 @@ end
 local function cancel_ai_pathing(ai)
   ai.pending_goal = nil
   ai.path_start_tick = nil
+  ai.path_stuck_since = nil
+  ai.path_stuck_pos = nil
   if storage.path_statuses and ai.unit_number then
     storage.path_statuses[ai.unit_number] = nil
   end
+  pathfinder.clear_queue_for(ai.unit_number)
 end
 
 --- Tactical retreat when hull/shield integrity drops below the configured %.
@@ -448,6 +452,8 @@ States.register(States.MOVING, {
     end
     if ai.pending_goal and util.distance(ai.pending_goal, target.position) > 32 then
       movement.go_to(spidertron, ai.target_pos, true)
+    else
+      pathfinder.repath_if_stuck(spidertron, ai.target_pos or target.position)
     end
   end,
 })
@@ -535,6 +541,8 @@ States.register(States.RETURNING, {
       if game.tick - ai.state_entered_tick > 120 then
         movement.go_to(spidertron, movement.home_position(ai), true)
       end
+    else
+      pathfinder.repath_if_stuck(spidertron, movement.home_position(ai))
     end
   end,
 })

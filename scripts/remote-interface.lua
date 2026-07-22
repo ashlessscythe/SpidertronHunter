@@ -98,6 +98,7 @@ local methods = {
     end
     storage.path_requests = {}
     storage.path_statuses = {}
+    storage.path_queue = {}
     log("[SpidertronHunter] reset cache and path state")
     return true
   end,

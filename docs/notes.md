@@ -26,7 +26,9 @@ Shared cache avoids rediscovering the same nest. TTL + death events prune entrie
 
 Base autopilot is straight-line. We use `LuaSurface.request_path` then
 `add_autopilot_destination` along the path. Short hops skip pathfinding.
-Concurrent requests are capped for UPS.
+One path request per spider (first odd leg). If the per-tick budget is full,
+requests are queued instead of falling back to direct autopilot (which stuck
+group members on lakes). Stuck spiders re-path after ~3s of no progress.
 
 Adapted pathfinding details are attributed in `NOTICE`.
 
@@ -48,8 +50,9 @@ When present:
 
 ## Path budget
 
-`storage.path_requests_this_tick` resets every tick (`on_nth_tick(1)`). Caps concurrent
-`request_path` calls so many hunters cannot flood the pathfinder (UPS / busy pathfinder).
+`storage.path_requests_this_tick` resets every tick (`on_nth_tick(1)`), then the
+path queue is drained. Caps how many `request_path` calls start per tick so many
+hunters cannot flood the pathfinder (UPS / busy pathfinder).
 
 ## Death filters
 
@@ -123,3 +126,11 @@ circle/flank, pauses to shoot, and rejects waypoints near `acid-splash-fire-*`.
 Toggle on a multi-selection enables all if any are off, else disables all — so the
 toolbar highlight means "whole selection is hunting." Per-spider combat style is
 chosen from a drop-down next to the Hunter button; stored on `ai.combat_style`.
+
+## Fleet path queue (2026-07-21)
+
+Group hunts could leave some spiders stuck on lakes: the per-tick path budget was
+small, each spider spent it on multiple leg requests, and budget misses fell back
+to direct autopilot into water. Fix: one path request per spider, queue overflows,
+retry when the engine says try-again-later, and re-path if a spider stops making
+progress for ~3 seconds.

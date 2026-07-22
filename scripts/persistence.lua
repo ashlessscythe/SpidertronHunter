@@ -1,5 +1,6 @@
 --- storage schema, destroy registration, configuration migrations.
 local util = require("scripts.util")
+local pathfinder = require("scripts.pathfinder")
 
 local M = {}
 
@@ -10,6 +11,7 @@ function M.init_storage()
   storage.destroy_regs = storage.destroy_regs or {}
   storage.path_requests = storage.path_requests or {}
   storage.path_statuses = storage.path_statuses or {}
+  storage.path_queue = storage.path_queue or {}
   storage.scan_cursor = storage.scan_cursor or nil
   storage.think_cursor = storage.think_cursor or nil
   storage.settings_cache = storage.settings_cache or {}
@@ -60,6 +62,7 @@ function M.remove_ai(unit_number)
   if storage.path_statuses[unit_number] then
     storage.path_statuses[unit_number] = nil
   end
+  pathfinder.clear_queue_for(unit_number)
 end
 
 --- @param event EventData.on_object_destroyed

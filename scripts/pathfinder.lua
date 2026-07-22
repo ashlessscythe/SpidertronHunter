@@ -1,11 +1,17 @@
 --- Lake-aware pathfinding into vanilla autopilot waypoints.
 --- See NOTICE for attribution of adapted pathfinding logic.
+---
+--- Fleet note: never fall back to direct autopilot when the path budget is full —
+--- queue instead. Direct-into-water is what made some group members get stuck.
 local util = require("scripts.util")
 
 local M = {}
 
-local MAX_PATH_REQUESTS_PER_TICK = 4
+local MAX_PATH_REQUESTS_PER_TICK = 8
 local SHORT_HOP_DISTANCE = 10
+--- Re-path if a spider barely moves while still far from its goal.
+local STUCK_TICKS = 180
+local STUCK_MOVE_EPS = 1.5
 
 local function get_leg_collision_mask(spidertron)
   local legs = spidertron.get_spider_legs()
@@ -29,6 +35,43 @@ local function get_leg_collision_mask(spidertron)
   return path_collision_mask, legs
 end
 
+local function ensure_queue()
+  storage.path_queue = storage.path_queue or {}
+end
+
+--- Drop queued work for one spider (or wipe the whole queue).
+--- @param unit_number integer?
+function M.clear_queue_for(unit_number)
+  ensure_queue()
+  if not unit_number then
+    storage.path_queue = {}
+    return
+  end
+  local src = storage.path_queue
+  local dst = {}
+  for i = 1, #src do
+    local item = src[i]
+    if item.unit_number ~= unit_number then
+      dst[#dst + 1] = item
+    end
+  end
+  storage.path_queue = dst
+end
+
+local function enqueue(item)
+  ensure_queue()
+  -- One pending job per spider: newer goals replace older queued work.
+  local src = storage.path_queue
+  local dst = {}
+  for i = 1, #src do
+    if src[i].unit_number ~= item.unit_number then
+      dst[#dst + 1] = src[i]
+    end
+  end
+  dst[#dst + 1] = item
+  storage.path_queue = dst
+end
+
 --- @param spidertron LuaEntity
 --- @param start_position MapPosition
 --- @param target_position MapPosition
@@ -36,6 +79,7 @@ end
 --- @param resolution integer
 --- @param start_tick integer
 --- @param leg_index integer
+--- @return integer? request_id
 local function request_one_path(spidertron, start_position, target_position, goal_position, resolution, start_tick, leg_index)
   if (storage.path_requests_this_tick or 0) >= MAX_PATH_REQUESTS_PER_TICK then
     return nil
@@ -72,26 +116,62 @@ local function request_one_path(spidertron, start_position, target_position, goa
   return request_id
 end
 
+--- Pick a start leg that is likely on walkable ground (first odd valid leg).
+--- @param spidertron LuaEntity
+--- @return integer? leg_index
+--- @return MapPosition? start_position
+local function pick_start_leg(spidertron)
+  local legs = spidertron.get_spider_legs()
+  if not legs or #legs == 0 then
+    return nil, nil
+  end
+  for i, leg in pairs(legs) do
+    if (i % 2 == 1) and leg.valid then
+      return i, { x = leg.position.x, y = leg.position.y }
+    end
+  end
+  local leg = legs[1]
+  if leg and leg.valid then
+    return 1, { x = leg.position.x, y = leg.position.y }
+  end
+  return nil, nil
+end
+
+--- Mark AI as waiting on this goal (in-flight or queued).
 --- @param spidertron LuaEntity
 --- @param goal MapPosition
---- @param resolution integer?
---- @return boolean started
-function M.request_path_to(spidertron, goal, resolution)
-  resolution = resolution or -3
+--- @param start_tick integer?
+local function mark_pending(spidertron, goal, start_tick)
+  local ai = storage.spiders[spidertron.unit_number]
+  if not ai then
+    return
+  end
+  ai.path_start_tick = start_tick
+  ai.pending_goal = { x = goal.x, y = goal.y }
+  ai.path_stuck_since = nil
+  ai.path_stuck_pos = nil
+end
+
+--- Attempt to issue one path request. Does not queue.
+--- @return "ok"|"budget"|"direct"
+local function try_start_path(spidertron, goal, resolution)
   local dist = util.distance(spidertron.position, goal)
   if dist < SHORT_HOP_DISTANCE then
     spidertron.follow_target = nil
     spidertron.autopilot_destination = goal
-    return true
+    mark_pending(spidertron, goal, nil)
+    return "direct"
+  end
+
+  local leg_index, start_position = pick_start_leg(spidertron)
+  if not leg_index or not start_position then
+    spidertron.follow_target = nil
+    spidertron.autopilot_destination = goal
+    mark_pending(spidertron, goal, nil)
+    return "direct"
   end
 
   local legs = spidertron.get_spider_legs()
-  if not legs or #legs == 0 then
-    spidertron.follow_target = nil
-    spidertron.autopilot_destination = goal
-    return true
-  end
-
   local target_position = spidertron.surface.find_non_colliding_position(
     legs[1].name,
     goal,
@@ -104,44 +184,152 @@ function M.request_path_to(spidertron, goal, resolution)
   storage.path_statuses[spidertron.unit_number][start_tick] = {
     finished = 0,
     success = false,
-    total = 0,
+    total = 1,
     goal = goal,
   }
 
-  local total = 0
-  for i, leg in pairs(legs) do
-    if (i % 2 == 1) and leg.valid then
+  local id = request_one_path(
+    spidertron,
+    start_position,
+    target_position,
+    goal,
+    resolution,
+    start_tick,
+    leg_index
+  )
+
+  if not id then
+    storage.path_statuses[spidertron.unit_number][start_tick] = nil
+    return "budget"
+  end
+
+  mark_pending(spidertron, goal, start_tick)
+  return "ok"
+end
+
+--- @param spidertron LuaEntity
+--- @param goal MapPosition
+--- @param resolution integer?
+--- @return boolean started
+function M.request_path_to(spidertron, goal, resolution)
+  resolution = resolution or -3
+  M.clear_queue_for(spidertron.unit_number)
+
+  local result = try_start_path(spidertron, goal, resolution)
+  if result == "budget" then
+    -- Do not walk straight into water — wait for a free path slot.
+    spidertron.follow_target = nil
+    spidertron.autopilot_destination = nil
+    mark_pending(spidertron, goal, nil)
+    enqueue({
+      kind = "start",
+      unit_number = spidertron.unit_number,
+      goal = { x = goal.x, y = goal.y },
+      resolution = resolution,
+    })
+  end
+  return true
+end
+
+--- Drain queued path work after the per-tick budget reset.
+function M.process_queue()
+  ensure_queue()
+  local queue = storage.path_queue
+  if #queue == 0 then
+    return
+  end
+
+  -- Take ownership so enqueue during retries cannot corrupt iteration.
+  storage.path_queue = {}
+  local remaining = {}
+
+  for i = 1, #queue do
+    local item = queue[i]
+    local ai = storage.spiders[item.unit_number]
+    local spidertron = ai and ai.entity
+    if not ai or not spidertron or not spidertron.valid then
+      -- drop
+    elseif item.kind == "start" then
+      local result = try_start_path(spidertron, item.goal, item.resolution or -3)
+      if result == "budget" then
+        remaining[#remaining + 1] = item
+      end
+    elseif item.kind == "retry" then
       local id = request_one_path(
         spidertron,
-        leg.position,
-        target_position,
-        goal,
-        resolution,
-        start_tick,
-        i
+        item.start_position,
+        item.target_position,
+        item.goal_position,
+        item.resolution,
+        item.start_tick,
+        item.leg_index
       )
-      if id then
-        total = total + 1
+      if not id then
+        remaining[#remaining + 1] = item
       end
     end
   end
 
-  local status = storage.path_statuses[spidertron.unit_number][start_tick]
-  status.total = total
+  storage.path_queue = remaining
+end
 
-  if total == 0 then
-    -- Budget exhausted or no legs — fall back to direct.
-    spidertron.follow_target = nil
-    spidertron.autopilot_destination = goal
-    storage.path_statuses[spidertron.unit_number][start_tick] = nil
+--- Re-request a lake-aware path if the spider is not making progress toward goal.
+--- @param spidertron LuaEntity
+--- @param goal MapPosition
+--- @return boolean did_repath
+function M.repath_if_stuck(spidertron, goal)
+  if not util.is_valid_spidertron(spidertron) or not goal then
+    return false
+  end
+  local ai = storage.spiders[spidertron.unit_number]
+  if not ai then
+    return false
+  end
+  if ai.keep_player_destination then
+    return false
+  end
+
+  local pos = spidertron.position
+  if util.distance(pos, goal) < SHORT_HOP_DISTANCE then
+    ai.path_stuck_since = nil
+    ai.path_stuck_pos = nil
+    return false
+  end
+
+  -- Still waiting on queued work.
+  ensure_queue()
+  for i = 1, #storage.path_queue do
+    if storage.path_queue[i].unit_number == ai.unit_number then
+      return false
+    end
+  end
+  -- Still waiting on an in-flight path.
+  if ai.path_start_tick and storage.path_statuses[ai.unit_number] and storage.path_statuses[ai.unit_number][ai.path_start_tick] then
+    return false
+  end
+
+  local moving = spidertron.autopilot_destination ~= nil or spidertron.follow_target ~= nil
+  if not moving then
+    M.request_path_to(spidertron, goal)
     return true
   end
 
-  local ai = storage.spiders[spidertron.unit_number]
-  if ai then
-    ai.path_start_tick = start_tick
-    ai.pending_goal = { x = goal.x, y = goal.y }
+  local stuck_pos = ai.path_stuck_pos
+  if not stuck_pos or util.distance(pos, stuck_pos) > STUCK_MOVE_EPS then
+    ai.path_stuck_pos = { x = pos.x, y = pos.y }
+    ai.path_stuck_since = game.tick
+    return false
   end
+
+  if game.tick - (ai.path_stuck_since or game.tick) < STUCK_TICKS then
+    return false
+  end
+
+  ai.path_stuck_since = nil
+  ai.path_stuck_pos = nil
+  spidertron.follow_target = nil
+  spidertron.autopilot_destination = nil
+  M.request_path_to(spidertron, goal)
   return true
 end
 
@@ -204,35 +392,43 @@ function M.on_path_finished(event)
     return
   end
 
-  if event.try_again_later then
-    request_one_path(
+  local function retry_or_queue(resolution)
+    local id = request_one_path(
       spidertron,
       info.start_position,
       info.target_position,
       info.goal_position,
-      info.resolution,
+      resolution,
       info.start_tick,
       info.leg_index
     )
+    if not id then
+      enqueue({
+        kind = "retry",
+        unit_number = unit_number,
+        start_position = info.start_position,
+        target_position = info.target_position,
+        goal_position = info.goal_position,
+        resolution = resolution,
+        start_tick = info.start_tick,
+        leg_index = info.leg_index,
+      })
+    end
+  end
+
+  if event.try_again_later then
+    retry_or_queue(info.resolution)
     return
   end
 
   if not event.path then
     if info.resolution < 1 then
-      request_one_path(
-        spidertron,
-        info.start_position,
-        info.target_position,
-        info.goal_position,
-        info.resolution + 2,
-        info.start_tick,
-        info.leg_index
-      )
+      retry_or_queue(info.resolution + 2)
       return
     end
     status.finished = status.finished + 1
     if status.finished >= status.total then
-      -- All failed — direct fallback.
+      -- All resolutions failed — direct fallback as last resort.
       spidertron.follow_target = nil
       spidertron.autopilot_destination = info.goal_position
       statuses[info.start_tick] = nil
@@ -269,6 +465,11 @@ function M.on_path_finished(event)
   end
   spidertron.add_autopilot_destination(info.goal_position)
 
+  if ai then
+    ai.path_stuck_since = nil
+    ai.path_stuck_pos = nil
+  end
+
   status.finished = status.finished + 1
   status.success = true
   if status.finished >= status.total then
@@ -278,6 +479,7 @@ end
 
 function M.on_tick_reset_budget()
   storage.path_requests_this_tick = 0
+  M.process_queue()
 end
 
 M.SHORT_HOP_DISTANCE = SHORT_HOP_DISTANCE
