@@ -18,6 +18,11 @@ local DEFAULTS = {
   spiders_per_think = 8,
   enemy_cache_ttl = 18000,
   debug_mode = false,
+  combat_range = 22,
+  combat_style = "strafe",
+  avoid_acid = true,
+  combat_move_interval = 90,
+  combat_pause_ticks = 45,
 }
 
 --- @return table
@@ -40,6 +45,11 @@ function M.refresh()
     spiders_per_think = g["sh-spiders-per-think"].value,
     enemy_cache_ttl = g["sh-enemy-cache-ttl"].value,
     debug_mode = g["sh-debug-mode"].value,
+    combat_range = g["sh-combat-range"].value,
+    combat_style = g["sh-combat-style"].value,
+    avoid_acid = g["sh-avoid-acid"].value,
+    combat_move_interval = g["sh-combat-move-interval"].value,
+    combat_pause_ticks = g["sh-combat-pause-ticks"].value,
   }
   storage.settings_cache = cache
   return cache

@@ -103,3 +103,14 @@ RESTOCKING at home so robots can repair / shields can refill.
 Hunter toggle uses `relative_gui_position.right` (same column as Spidertron Patrols
 schedule/camera) instead of `top`, which was floating above the whole screen.
 
+## Shortcut toggle state
+
+`toggleable = true` + `player.set_shortcut_toggled` synced from selection / enable
+so the toolbar button highlights while Hunter AI is active on the current selection.
+
+## Combat kiting (2026-07-21)
+
+ATTACKING no longer uses `follow_target` (walked into spitters/acid). `combat.lua`
+issues short direct autopilot hops at `sh-combat-range` with styles hold/strafe/
+circle/flank, pauses to shoot, and rejects waypoints near `acid-splash-fire-*`.
+

@@ -15,6 +15,7 @@ data:extend({
     associated_control_input = "sh-toggle-autonomy",
     technology_to_unlock = "spidertron",
     unavailable_until_unlocked = true,
+    toggleable = true,
     icon = "__SpidertronHunter__/graphics/shortcut/hunter-x56.png",
     icon_size = 56,
     small_icon = "__SpidertronHunter__/graphics/shortcut/hunter-x24.png",

@@ -7,6 +7,8 @@ local movement = require("scripts.movement")
 local scanner = require("scripts.scanner")
 local targeting = require("scripts.targeting")
 local logistics = require("scripts.logistics")
+local combat = require("scripts.combat")
+local shortcut = require("scripts.shortcut")
 
 local M = {}
 
@@ -209,6 +211,7 @@ function M.enable(spidertron, player)
   if player then
     util.flying_text(player, { "sh.enabled" }, spidertron.position)
   end
+  shortcut.sync_all()
   return true
 end
 
@@ -235,6 +238,7 @@ function M.disable(spidertron, player)
   if player and spidertron and spidertron.valid then
     util.flying_text(player, { "sh.disabled" }, spidertron.position)
   end
+  shortcut.sync_all()
 end
 
 --- @param spidertron LuaEntity
@@ -386,7 +390,7 @@ States.register(States.MOVING, {
       release_claim(ai)
       return after_combat_clear(ai)
     end
-    if util.distance(spidertron.position, target.position) <= ARRIVAL_RADIUS + 16 then
+    if util.distance(spidertron.position, target.position) <= settings_mod.get().combat_range * 1.15 then
       ai.post_combat_since = nil
       return States.ATTACKING
     end
@@ -399,9 +403,14 @@ States.register(States.MOVING, {
 States.register(States.ATTACKING, {
   enter = function(ai)
     ai.post_combat_since = nil
+    ai.combat_last_move_tick = 0
     local spidertron = ai.entity
-    if util.is_valid_spidertron(spidertron) and ai.target_entity and ai.target_entity.valid then
-      movement.follow(spidertron, ai.target_entity)
+    if util.is_valid_spidertron(spidertron) then
+      -- Do not follow into melee/acid — combat module kites at range.
+      spidertron.follow_target = nil
+      if ai.target_entity and ai.target_entity.valid then
+        combat.update(ai, spidertron, ai.target_entity)
+      end
     end
   end,
   update = function(ai)
@@ -417,9 +426,7 @@ States.register(States.ATTACKING, {
     local target = ai.target_entity
     if target and target.valid and not beyond_pursuit(ai, target.position) then
       ai.post_combat_since = nil
-      if spidertron.follow_target ~= target then
-        movement.follow(spidertron, target)
-      end
+      combat.update(ai, spidertron, target)
       return
     end
 
@@ -431,7 +438,7 @@ States.register(States.ATTACKING, {
     local next_enemy = scanner.find_nearby_combat(ai, spidertron.position, reacquire_radius)
     if next_enemy and claim_target(ai, next_enemy) then
       ai.post_combat_since = nil
-      movement.follow(spidertron, next_enemy)
+      combat.update(ai, spidertron, next_enemy)
       return
     end
 
@@ -645,6 +652,7 @@ function M.think_all()
   end)
   storage.think_cursor = next_key
   targeting.prune(4)
+  shortcut.sync_all()
 end
 
 return M

@@ -4,6 +4,7 @@ local ai = require("scripts.ai")
 local pathfinder = require("scripts.pathfinder")
 local targeting = require("scripts.targeting")
 local gui = require("scripts.gui")
+local shortcut = require("scripts.shortcut")
 
 require("scripts.remote-interface")
 
@@ -102,6 +103,7 @@ script.on_event("sh-toggle-autonomy", function(event)
   local player = game.get_player(event.player_index)
   if player then
     ai.toggle_for_player(player)
+    shortcut.sync_player(player)
   end
 end)
 
@@ -112,12 +114,33 @@ script.on_event(defines.events.on_lua_shortcut, function(event)
   local player = game.get_player(event.player_index)
   if player then
     ai.toggle_for_player(player)
+    shortcut.sync_player(player)
   end
 end)
 
-script.on_event(defines.events.on_gui_opened, gui.on_gui_opened)
+-- Keep toolbar highlight in sync with remote selection.
+script.on_event(defines.events.on_player_cursor_stack_changed, function(event)
+  local player = game.get_player(event.player_index)
+  if player then
+    shortcut.sync_player(player)
+  end
+end)
+
+script.on_event(defines.events.on_gui_opened, function(event)
+  gui.on_gui_opened(event)
+  local player = game.get_player(event.player_index)
+  if player then
+    shortcut.sync_player(player)
+  end
+end)
 script.on_event(defines.events.on_gui_closed, gui.on_gui_closed)
-script.on_event(defines.events.on_gui_click, gui.on_gui_click)
+script.on_event(defines.events.on_gui_click, function(event)
+  gui.on_gui_click(event)
+  local player = game.get_player(event.player_index)
+  if player then
+    shortcut.sync_player(player)
+  end
+end)
 
 -- Soft-compat with SpidertronEnhancements entity replace (same pattern as Patrols).
 if prototypes.custom_event["on_spidertron_replaced"] then
