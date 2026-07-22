@@ -1,5 +1,5 @@
 --- Lake-aware pathfinding into vanilla autopilot waypoints.
---- Architectural reference: SpidertronEnhancements pathfinder.lua (owned implementation).
+--- See NOTICE for attribution of adapted pathfinding logic.
 local util = require("scripts.util")
 
 local M = {}

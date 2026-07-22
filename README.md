@@ -62,9 +62,15 @@ Alias: `SpidertronHunter` (same methods).
 
 ## Compatibility
 
-- Soft-compatible with Spidertron Patrols (refuses enable while a spider is on patrol when that data is available)
-- Listens for Spidertron Enhancements `on_spidertron_replaced`
-- Ignores Constructron / docked Space Spidertron names
+Spidertron Hunter is an independent project. It is not a fork of, and is not intended as a replacement for, [Spidertron Patrols](https://mods.factorio.com/mod/SpidertronPatrols) or [Spidertron Enhancements](https://mods.factorio.com/mod/SpidertronEnhancements).
+
+Those mods are listed as optional dependencies. When they are installed, Spidertron Hunter enables optional compatibility features where appropriate (for example, avoiding control conflicts with active patrols, and remapping AI state if a spidertron entity is replaced).
+
+Hunter AI and manual patrol schedules are separate control modes; do not run both on the same spidertron.
+
+## Development
+
+This project is developed with AI-assisted tooling. All architecture, testing, and release decisions are reviewed before publication.
 
 ## Install (dev)
 
@@ -73,6 +79,8 @@ Symlink or copy this folder into your Factorio `mods` directory as `SpidertronHu
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+Third-party attributions for adapted code (where applicable) are listed in [NOTICE](NOTICE).
 
 ## Notes
 

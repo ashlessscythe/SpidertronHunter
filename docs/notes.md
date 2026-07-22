@@ -4,7 +4,7 @@
 
 Spider AI lives in `storage.spiders[unit_number]` with a live entity reference.
 Destroy registration via `script.register_on_object_destroyed` cleans up without
-polling. This matches SpidertronPatrols and stays multiplayer-deterministic.
+polling and stays multiplayer-deterministic.
 
 ## Settings cache
 
@@ -25,8 +25,10 @@ Shared cache avoids rediscovering the same nest. TTL + death events prune entrie
 ## Lake routing via request_path
 
 Base autopilot is straight-line. We use `LuaSurface.request_path` then
-`add_autopilot_destination` along the path (Enhancements pattern, owned code).
-Short hops skip pathfinding. Concurrent requests are capped for UPS.
+`add_autopilot_destination` along the path. Short hops skip pathfinding.
+Concurrent requests are capped for UPS.
+
+Adapted pathfinding details are attributed in `NOTICE`.
 
 ## Restock is wait-with-timeout, not magic insert
 
@@ -35,10 +37,14 @@ robots, then resumes on timeout so spiders never stuck forever.
 
 ## Compatibility
 
-Refuse enable while SpidertronPatrols has `on_patrol` when their remote returns data.
-Soft deps only. Denylist constructron / docked space-spidertron names.
+Optional soft dependencies on Spidertron Patrols and Spidertron Enhancements.
+Hunter is independent and not a replacement for either mod.
 
-Listen for Enhancements `on_spidertron_replaced` when that custom event prototype exists.
+When present:
+
+- Refuse enable while Patrols reports `on_patrol` (when that remote returns data).
+- Listen for Enhancements `on_spidertron_replaced` to remap AI state.
+- Denylist constructron / docked space-spidertron names.
 
 ## Path budget
 
@@ -88,8 +94,7 @@ camps instead of snapping home the instant the last biter dies.
 
 ## Shortcut icon
 
-Custom `__SpidertronHunter__/graphics/shortcut/hunter-*.png` — RTS tool flipped
-180° and amber-tinted so it is distinct from the vanilla remote shortcut.
+Custom spidertron-with-gun art in `graphics/shortcut/`.
 
 ## Tactical retreat (2026-07-21)
 
@@ -100,8 +105,7 @@ RESTOCKING at home so robots can repair / shields can refill.
 
 ## GUI anchor
 
-Hunter toggle uses `relative_gui_position.right` (same column as Spidertron Patrols
-schedule/camera) instead of `top`, which was floating above the whole screen.
+Hunter toggle uses `relative_gui_position.right` on the spidertron GUI.
 
 ## Shortcut toggle state
 
@@ -119,6 +123,3 @@ circle/flank, pauses to shoot, and rejects waypoints near `acid-splash-fire-*`.
 Toggle on a multi-selection enables all if any are off, else disables all — so the
 toolbar highlight means "whole selection is hunting." Per-spider combat style is
 chosen from a drop-down next to the Hunter button; stored on `ai.combat_style`.
-
-Custom toolbar art: generated spidertron-with-gun icon in `graphics/shortcut/`.
-

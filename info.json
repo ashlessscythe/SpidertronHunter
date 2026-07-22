@@ -1,9 +1,9 @@
 {
   "name": "SpidertronHunter",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "title": "Spidertron Hunter",
-  "author": "SpidertronHunter",
-  "description": "Autonomous Spidertron AI: search for enemies, travel with lake-aware autopilot, attack, return home, and optionally restock.",
+  "author": "Tony",
+  "description": "Autonomous Spidertron AI that searches for enemy bases, attacks targets, returns home, and can optionally repair and restock.",
   "factorio_version": "2.1",
   "dependencies": [
     "base",
