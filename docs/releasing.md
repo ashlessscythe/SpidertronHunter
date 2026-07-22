@@ -22,6 +22,7 @@ Maintainer guide for publishing a new version.
 - ZIP name: `SpidertronHunter_<version>.zip`
 - Archive must contain exactly one top-level folder: `SpidertronHunter_<version>/`
 - Tag must match `info.json` version (`v0.1.9` ↔ `0.1.9`)
+- No executables or scripts in the ZIP (Mod Portal rejects them); packaging strips the execute bit and excludes `*.sh` / `*.ps1` / `*.py` / `*.exe` / `*.bat` and similar
 
 ## Manual / dry-run
 

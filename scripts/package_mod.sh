@@ -19,9 +19,11 @@ should_exclude() {
   local rel="$1"
   case "${rel}" in
     .git|.git/*|.github|.github/*|tests|tests/*|docs|docs/*|dist|dist/*) return 0 ;;
-    sync_main.sh|.gitattributes|.gitignore|scripts/package_mod.sh|CONTRIBUTING.md) return 0 ;;
+    .gitattributes|.gitignore|CONTRIBUTING.md) return 0 ;;
+    # Maintainer scripts / binaries — Mod Portal rejects executables; not needed in-game
+    *.sh|*.ps1|*.py|scripts/package_mod.sh) return 0 ;;
     graphics/shortcut/hunter-source.png) return 0 ;;
-    *.zip) return 0 ;;
+    *.zip|*.exe|*.dll|*.so|*.dylib|*.bat|*.cmd|*.com) return 0 ;;
   esac
   return 1
 }
@@ -33,13 +35,16 @@ while IFS= read -r -d '' path; do
   fi
   dest="${OUT_DIR}/${FOLDER}/${rel}"
   mkdir -p "$(dirname "${dest}")"
-  cp -a "${path}" "${dest}"
+  # Copy without preserving mode so the execute bit never lands in the portal zip
+  cp --no-preserve=mode "${path}" "${dest}"
+  chmod a-x "${dest}"
 done < <(find . -type f -print0)
 
 (
   cd "${OUT_DIR}"
   rm -f "${ZIP}"
-  zip -qr "${ZIP}" "${FOLDER}"
+  # -X omits extra Unix fields; files are already non-executable above
+  zip -qrX "${ZIP}" "${FOLDER}"
 )
 
 echo "Created ${OUT_DIR}/${ZIP}"
