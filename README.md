@@ -67,9 +67,9 @@ Alias: `SpidertronHunter` (same methods).
 
 Spidertron Hunter is an independent project. It is not a fork of, and is not intended as a replacement for, [Spidertron Patrols](https://mods.factorio.com/mod/SpidertronPatrols) or [Spidertron Enhancements](https://mods.factorio.com/mod/SpidertronEnhancements).
 
-Those mods are listed as optional dependencies. When they are installed, Spidertron Hunter enables optional compatibility features where appropriate (for example, avoiding control conflicts with active patrols, and remapping AI state if a spidertron entity is replaced).
+Those mods are listed as optional dependencies. When they are installed, Spidertron Hunter enables optional compatibility features where appropriate (for example, forcing Spidertron Patrols to manual while Hunter AI is enabled and restoring automatic on disable when prior mode is known, and remapping AI state if a spidertron entity is replaced).
 
-Hunter AI and manual patrol schedules are separate control modes; do not run both on the same spidertron.
+**0.1.11:** While Hunter AI is enabled, Patrols is switched to manual so the two mods do not fight over autopilot destinations. Disabling Hunter restores automatic only when the schedule was auto before (otherwise it stays manual).
 
 ## Development
 

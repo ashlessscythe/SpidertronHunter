@@ -2,6 +2,16 @@
 
 All notable changes to Spidertron Hunter are documented here.
 
+## [0.1.11] — 2026-07-22
+
+### Added
+
+- Spidertron Patrols soft-dep handoff: while Hunter AI is enabled, force Patrols to manual; restore automatic when disable can confirm it was auto (open schedule switch or remote data).
+
+### Changed
+
+- No longer refuse Hunter enable when a Patrols schedule is active; modes are handed off instead.
+
 ## [0.1.10] — 2026-07-22
 
 ### Changed

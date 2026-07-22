@@ -490,6 +490,171 @@ harness.run("combat style dropdown index", function()
 end)
 
 ---------------------------------------------------------------------------
+-- patrols soft-dep handoff
+---------------------------------------------------------------------------
+
+local patrols = require("scripts.patrols")
+
+local function stub_patrols_remote(state)
+  remote = {
+    interfaces = {
+      SpidertronPatrols = {
+        get_patrol_data = true,
+        set_on_patrol = true,
+      },
+    },
+    call = function(iface, fn, spidertron, arg)
+      harness.assert_eq(iface, "SpidertronPatrols")
+      if fn == "get_patrol_data" then
+        return { on_patrol = state.on_patrol, waypoints = state.waypoints or {} }
+      end
+      if fn == "set_on_patrol" then
+        state.last_set = arg
+        if arg then
+          state.on_patrol = state.on_patrol or {}
+        else
+          state.on_patrol = nil
+        end
+        return
+      end
+      error("unknown remote " .. tostring(fn))
+    end,
+  }
+  return state
+end
+
+harness.run("patrols no-op when interface absent", function()
+  remote = { interfaces = {} }
+  local spider = { valid = true }
+  harness.assert_false(patrols.is_available())
+  harness.assert_eq(patrols.get_was_auto(spider), nil)
+  harness.assert_eq(patrols.capture_was_auto(spider), nil)
+  harness.assert_false(patrols.set_manual(spider))
+  harness.assert_false(patrols.restore(spider, true))
+  harness.assert_false(patrols.restore(spider, false))
+  harness.assert_false(patrols.restore(spider, nil))
+end)
+
+harness.run("patrols get_was_auto true/false", function()
+  local state = stub_patrols_remote({ on_patrol = {} })
+  harness.assert_true(patrols.get_was_auto({}))
+  state.on_patrol = nil
+  harness.assert_false(patrols.get_was_auto({}))
+end)
+
+harness.run("patrols capture assumes manual when read fails (no GUI)", function()
+  -- Mirrors SpidertronPatrols remote that calls get_patrol_data but omits return.
+  remote = {
+    interfaces = {
+      SpidertronPatrols = {
+        get_patrol_data = true,
+        set_on_patrol = true,
+      },
+    },
+    call = function(iface, fn, spidertron, arg)
+      if fn == "get_patrol_data" then
+        return nil
+      end
+      if fn == "set_on_patrol" then
+        remote._last_set = arg
+        return
+      end
+    end,
+  }
+  game = { players = {} }
+  harness.assert_true(patrols.is_available())
+  harness.assert_eq(patrols.get_was_auto({}), nil)
+  harness.assert_false(patrols.capture_was_auto({}))
+  harness.assert_true(patrols.set_manual({}))
+  harness.assert_eq(remote._last_set, false)
+  -- Must not flip manual schedules to auto on disable.
+  harness.assert_false(patrols.restore({}, false))
+  harness.assert_eq(remote._last_set, false)
+end)
+
+harness.run("patrols capture reads open schedule switch", function()
+  remote = {
+    interfaces = {
+      SpidertronPatrols = {
+        get_patrol_data = true,
+        set_on_patrol = true,
+      },
+    },
+    call = function()
+      return nil
+    end,
+  }
+  local spider = { name = "spider" }
+  local switch = {
+    valid = true,
+    name = "on_patrol_switch",
+    type = "switch",
+    switch_state = "left",
+    children = {},
+  }
+  game = {
+    players = {
+      {
+        valid = true,
+        opened = spider,
+        gui = {
+          relative = {
+            ["sp-relative-frame"] = {
+              valid = true,
+              name = "sp-relative-frame",
+              children = { switch },
+            },
+          },
+        },
+      },
+    },
+  }
+  harness.assert_true(patrols.capture_was_auto(spider))
+  switch.switch_state = "right"
+  harness.assert_false(patrols.capture_was_auto(spider))
+end)
+
+harness.run("patrols set_manual and restore previous auto", function()
+  local state = stub_patrols_remote({ on_patrol = {} })
+  harness.assert_true(patrols.capture_was_auto({}))
+  harness.assert_true(patrols.set_manual({}))
+  harness.assert_eq(state.last_set, false)
+  harness.assert_eq(state.on_patrol, nil)
+  harness.assert_true(patrols.restore({}, true))
+  harness.assert_eq(state.last_set, true)
+  harness.assert_true(state.on_patrol ~= nil)
+end)
+
+harness.run("patrols restore only when was auto", function()
+  local state = stub_patrols_remote({ on_patrol = nil })
+  harness.assert_false(patrols.capture_was_auto({}))
+  harness.assert_false(patrols.restore({}, false))
+  harness.assert_eq(state.last_set, nil)
+  harness.assert_false(patrols.restore({}, nil))
+  harness.assert_eq(state.last_set, nil)
+end)
+
+harness.run("patrols pcall survives remote errors", function()
+  remote = {
+    interfaces = {
+      SpidertronPatrols = {
+        get_patrol_data = true,
+        set_on_patrol = true,
+      },
+    },
+    call = function()
+      error("boom")
+    end,
+  }
+  game = { players = {} }
+  harness.assert_eq(patrols.get_was_auto({}), nil)
+  -- Unreadable → assume manual (do not restore auto)
+  harness.assert_false(patrols.capture_was_auto({}))
+  harness.assert_false(patrols.set_manual({}))
+  harness.assert_false(patrols.restore({}, true))
+end)
+
+---------------------------------------------------------------------------
 -- info.json / packaging name
 ---------------------------------------------------------------------------
 

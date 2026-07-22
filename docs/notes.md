@@ -44,7 +44,10 @@ Hunter is independent and not a replacement for either mod.
 
 When present:
 
-- Refuse enable while Patrols reports `on_patrol` (when that remote returns data).
+- Force Patrols to manual on Hunter enable; restore previous auto only when we
+  know it was auto (remote table, or open schedule switch). If mode cannot be
+  read, leave manual on disable so we never flip an already-manual schedule to auto.
+  (`set_on_patrol` remote; `get_patrol_data` may omit its return value.)
 - Listen for Enhancements `on_spidertron_replaced` to remap AI state.
 - Denylist constructron / docked space-spidertron names.
 
@@ -160,3 +163,11 @@ hot think path (sync on enable/disable/selection only).
 migrations (`0.1.0`, `0.1.5`, `0.1.7`, `0.1.9`) populate path queue / combat
 fields and sanitize orphan claims. Pure Lua suite lives in `tests/run.lua`.
 GitHub Release workflow emits `SpidertronHunter_<version>.zip` for Mod Portal.
+
+## Patrols exclusive handoff (0.1.11)
+
+Replaced refuse-enable-while-on-patrol with soft-dep handoff in
+`scripts/patrols.lua`: on Hunter enable call Patrols `set_on_patrol(false)`;
+on disable restore auto only when prior mode was known (remote table or open
+`on_patrol_switch`). If mode cannot be read, leave manual so already-manual
+schedules are not flipped to auto. Patrols stays an optional `?` dependency.

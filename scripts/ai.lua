@@ -10,6 +10,7 @@ local logistics = require("scripts.logistics")
 local combat = require("scripts.combat")
 local shortcut = require("scripts.shortcut")
 local pathfinder = require("scripts.pathfinder")
+local patrols = require("scripts.patrols")
 
 local M = {}
 
@@ -149,20 +150,6 @@ local function enemy_at_click(surface, position, force)
   return nil
 end
 
---- Deny enable while Spidertron Patrols reports on_patrol when the remote returns data.
-local function is_on_patrols(spidertron)
-  if not remote.interfaces["SpidertronPatrols"] or not remote.interfaces["SpidertronPatrols"].get_patrol_data then
-    return false
-  end
-  local ok, data = pcall(function()
-    return remote.call("SpidertronPatrols", "get_patrol_data", spidertron)
-  end)
-  if not ok or type(data) ~= "table" then
-    return false
-  end
-  return data.on_patrol ~= nil
-end
-
 --- @param spidertron LuaEntity
 --- @param player LuaPlayer?
 --- @return boolean success
@@ -173,18 +160,20 @@ function M.enable(spidertron, player)
     end
     return false
   end
-  if is_on_patrols(spidertron) then
-    if player then
-      util.flying_text(player, { "sh.denied-patrols" }, spidertron.position)
-    end
-    return false
-  end
 
   local ai = persistence.get_ai_for_entity(spidertron)
   if not ai then
     ai = persistence.create_ai(spidertron)
   else
     ai.entity = spidertron
+  end
+
+  -- Soft-dep handoff: force Patrols manual for the Hunter session; restore on disable.
+  -- Always call set_manual when Patrols is present — do not gate on get_was_auto
+  -- (Patrols' get_patrol_data remote often returns nil, so reads are unreliable).
+  ai.patrols_was_auto = patrols.capture_was_auto(spidertron)
+  if ai.patrols_was_auto ~= nil then
+    patrols.set_manual(spidertron)
   end
 
   ai.home = {
@@ -231,7 +220,9 @@ function M.disable(spidertron, player)
   if spidertron and spidertron.valid then
     -- Leave any current player destination alone; only drop follow.
     spidertron.follow_target = nil
+    patrols.restore(spidertron, ai.patrols_was_auto)
   end
+  ai.patrols_was_auto = nil
   States.transition(ai, States.IDLE)
 
   script.raise_event("on_spidertron_hunter_disabled", {
