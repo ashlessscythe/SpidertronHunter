@@ -20,6 +20,7 @@ should_exclude() {
   case "${rel}" in
     .git|.git/*|.github|.github/*|tests|tests/*|docs|docs/*|dist|dist/*) return 0 ;;
     sync_main.sh|.gitattributes|.gitignore|scripts/package_mod.sh) return 0 ;;
+    graphics/shortcut/hunter-source.png) return 0 ;;
     *.zip) return 0 ;;
   esac
   return 1
