@@ -2,6 +2,12 @@
 
 All notable changes to Spidertron Hunter are documented here.
 
+## [0.1.12] — 2026-07-22
+
+### Fixed
+
+- Mod Portal release package no longer includes shell scripts or other executables (Portal rejects them).
+
 ## [0.1.11] — 2026-07-22
 
 ### Added
