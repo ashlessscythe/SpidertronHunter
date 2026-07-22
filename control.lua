@@ -40,6 +40,7 @@ end)
 
 script.on_configuration_changed(function()
   persistence.init_storage()
+  -- Versioned migrations/*.lua also run; this catches missing tables on reload.
   settings_mod.refresh()
   register_nth_tick(settings_mod.get().scan_interval)
 end)

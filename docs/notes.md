@@ -153,3 +153,10 @@ explicit disable clears Hunter AI. After combat / return home / restock the spid
 stays enabled and resumes PATROL. Think loop recovers stale entity refs via
 `get_entity_by_unit_number` before dropping AI; shortcut sync removed from the
 hot think path (sync on enable/disable/selection only).
+
+## Migrations + release packaging (2026-07-22)
+
+`scripts/schema.lua` owns storage ensure + AI record hygiene. Versioned
+migrations (`0.1.0`, `0.1.5`, `0.1.7`, `0.1.9`) populate path queue / combat
+fields and sanitize orphan claims. Pure Lua suite lives in `tests/run.lua`.
+GitHub Release workflow emits `SpidertronHunter_<version>.zip` for Mod Portal.
