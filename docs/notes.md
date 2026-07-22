@@ -55,3 +55,39 @@ run Lua on every tree/rock death.
 `util.for_n_of` processes at most `sh-spiders-per-think` spiders per scan interval.
 Cursor persists in `storage.think_cursor` so large fleets amortize over time.
 
+## Player remote vs AI (2026-07-21)
+
+Bug: PATROL pulled spiders home whenever >32 tiles from home, so after a player
+remote click they traveled briefly then snapped home. Also exclusive target claims
+meant only one of a multi-select group kept the enemy.
+
+Fix:
+- PATROL only searches from current position; home return is RETURNING after combat.
+- Soft claims (prefer unclaimed, still allow sharing).
+- Player click on enemy → all selected hunters adopt that target and keep the
+  player-issued autopilot path (`keep_player_destination`).
+- Player click on empty ground → WAITING until arrival, then SEARCH in place.
+- Pathfinder aborts applying paths while WAITING / keep_player_destination.
+
+## Remote + shortcut
+
+Interfaces: `SpidertronHunter` and alias `spidertron_hunter` with
+enable/disable/debug/reset/scan. Toolbar shortcut `sh-toggle-autonomy` (spidertron tech).
+
+## Pursuit vs home (2026-07-21)
+
+Re-toggling enable felt required to find enemies because enable resets Home, and
+scans rejected anything beyond `max_pursuit` from the *original* home — so a
+spider already in the field went blind. Fix: near home, enforce max_pursuit from
+home; once deployed (>64 tiles from home), accept any enemy within search_radius.
+
+## Post-combat linger
+
+`sh-post-combat-linger-ticks` (default 1800) delays RETURNING so hunters clear
+camps instead of snapping home the instant the last biter dies.
+
+## Shortcut icon
+
+Custom `__SpidertronHunter__/graphics/shortcut/hunter-*.png` — RTS tool flipped
+180° and amber-tinted so it is distinct from the vanilla remote shortcut.
+

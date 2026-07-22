@@ -161,7 +161,9 @@ function M.prune(budget)
   end
 end
 
---- Find best unclaimed cached enemy near position within radius.
+--- Find best cached enemy near position within radius.
+--- Soft claims: prefer unclaimed, but still return claimed targets so multiple
+--- spiders can converge on the same nest.
 --- @param surface_index integer
 --- @param position MapPosition
 --- @param radius number
@@ -181,10 +183,6 @@ function M.find_near(surface_index, position, radius, spider_unit_number, priori
   for _, list in pairs(bucket) do
     for i = 1, #list do
       local entry = list[i]
-      local claimer = storage.target_claims[entry.id]
-      if claimer and claimer ~= spider_unit_number then
-        goto continue
-      end
       if not entry.entity or not entry.entity.valid then
         goto continue
       end
@@ -194,6 +192,11 @@ function M.find_near(surface_index, position, radius, spider_unit_number, priori
       end
 
       local score = dsq
+      local claimer = storage.target_claims[entry.id]
+      if claimer and claimer ~= spider_unit_number then
+        -- Soft preference only — do not skip.
+        score = score + 1e6
+      end
       if prioritization == "spawners-first" then
         if entry.type == "unit-spawner" then
           score = score - 1e10
@@ -215,6 +218,35 @@ function M.find_near(surface_index, position, radius, spider_unit_number, priori
   end
 
   return best
+end
+
+--- Wipe all cache entries and claims.
+function M.reset()
+  storage.enemy_cache = {}
+  storage.target_claims = {}
+  storage.next_cache_id = 1
+end
+
+--- Debug snapshot of cache sizes.
+--- @return table
+function M.debug_stats()
+  local entries = 0
+  local surfaces = 0
+  for _, bucket in pairs(storage.enemy_cache) do
+    surfaces = surfaces + 1
+    for _, list in pairs(bucket) do
+      entries = entries + #list
+    end
+  end
+  local claims = 0
+  for _ in pairs(storage.target_claims) do
+    claims = claims + 1
+  end
+  return {
+    surfaces = surfaces,
+    entries = entries,
+    claims = claims,
+  }
 end
 
 return M

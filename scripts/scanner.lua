@@ -5,13 +5,34 @@ local targeting = require("scripts.targeting")
 
 local M = {}
 
---- Priority type weights for filtered scans.
+--- When the spider is still near home, max_pursuit is enforced from home.
+--- Once deployed farther out, allow any enemy within search_radius of the spider
+--- (otherwise hunters go blind until the player re-enables and resets home).
+local NEAR_HOME_THRESHOLD = 64
+
 local TYPE_PRIORITY = {
   ["unit-spawner"] = 1,
   ["turret"] = 2,
   ["unit"] = 3,
   ["spider-unit"] = 3,
 }
+
+--- @param home MapPosition
+--- @param spider_pos MapPosition
+--- @param enemy_pos MapPosition
+--- @param max_pursuit number
+--- @param search_radius number
+--- @return boolean
+local function allowed_target(home, spider_pos, enemy_pos, max_pursuit, search_radius)
+  if util.distance(spider_pos, enemy_pos) > search_radius then
+    return false
+  end
+  local spider_from_home = util.distance(home, spider_pos)
+  if spider_from_home <= NEAR_HOME_THRESHOLD then
+    return util.distance(home, enemy_pos) <= max_pursuit
+  end
+  return true
+end
 
 --- @param ai table
 --- @return LuaEntity?
@@ -25,36 +46,33 @@ function M.scan_for_enemy(ai)
   local radius = cfg.search_radius
   local home = { x = ai.home.x, y = ai.home.y }
   local max_pursuit = cfg.max_pursuit_distance
+  local spider_pos = spidertron.position
 
-  -- Prefer shared cache (cheap).
   local cached = targeting.find_near(
     spidertron.surface_index,
-    spidertron.position,
+    spider_pos,
     radius,
     ai.unit_number,
     cfg.enemy_prioritization
   )
   if cached and cached.entity and cached.entity.valid then
-    local from_home = util.distance(home, cached.position)
-    if from_home <= max_pursuit then
+    if allowed_target(home, spider_pos, cached.position, max_pursuit, radius) then
       return cached.entity
     end
   end
 
-  -- Budget: primary cheap probe.
   local budget = cfg.scan_budget
   local used = 0
 
   local nearest = spidertron.surface.find_nearest_enemy({
-    position = spidertron.position,
+    position = spider_pos,
     max_distance = radius,
     force = spidertron.force,
   })
   used = used + 1
 
   if nearest and nearest.valid then
-    local from_home = util.distance(home, nearest.position)
-    if from_home <= max_pursuit then
+    if allowed_target(home, spider_pos, nearest.position, max_pursuit, radius) then
       targeting.remember(nearest)
       return nearest
     end
@@ -64,12 +82,9 @@ function M.scan_for_enemy(ai)
     return nil
   end
 
-  -- Optional prioritization scan with hard limit.
   if cfg.enemy_prioritization ~= "nearest" then
-    -- Do not filter by spidertron.force (that returns friendlies). Filter military
-    -- targets then keep enemies of this force only.
     local found = spidertron.surface.find_entities_filtered({
-      position = spidertron.position,
+      position = spider_pos,
       radius = radius,
       is_military_target = true,
       limit = math.min(8, budget - used + 1),
@@ -82,15 +97,12 @@ function M.scan_for_enemy(ai)
     for i = 1, #found do
       local e = found[i]
       if e.valid and e.force and spidertron.force.is_enemy(e.force) then
-        local from_home = util.distance(home, e.position)
-        if from_home <= max_pursuit then
+        if allowed_target(home, spider_pos, e.position, max_pursuit, radius) then
           local rank = TYPE_PRIORITY[e.type] or 50
-          if cfg.enemy_prioritization == "units-first" then
-            if e.type == "unit" then
-              rank = 0
-            end
+          if cfg.enemy_prioritization == "units-first" and e.type == "unit" then
+            rank = 0
           end
-          local dsq = util.distance_squared(spidertron.position, e.position)
+          local dsq = util.distance_squared(spider_pos, e.position)
           if rank < best_rank or (rank == best_rank and dsq < best_dsq) then
             best_rank = rank
             best_dsq = dsq
@@ -109,6 +121,7 @@ function M.scan_for_enemy(ai)
 end
 
 --- Find another enemy near current combat position (pursuit).
+--- Deployed spiders are not gated by home distance here.
 --- @param ai table
 --- @param center MapPosition
 --- @param radius number
@@ -118,8 +131,6 @@ function M.find_nearby_combat(ai, center, radius)
   if not util.is_valid_spidertron(spidertron) then
     return nil
   end
-  local home = { x = ai.home.x, y = ai.home.y }
-  local max_pursuit = settings_mod.get().max_pursuit_distance
 
   local nearest = spidertron.surface.find_nearest_enemy({
     position = center,
@@ -127,12 +138,12 @@ function M.find_nearby_combat(ai, center, radius)
     force = spidertron.force,
   })
   if nearest and nearest.valid then
-    if util.distance(home, nearest.position) <= max_pursuit then
-      targeting.remember(nearest)
-      return nearest
-    end
+    targeting.remember(nearest)
+    return nearest
   end
   return nil
 end
+
+M.NEAR_HOME_THRESHOLD = NEAR_HOME_THRESHOLD
 
 return M

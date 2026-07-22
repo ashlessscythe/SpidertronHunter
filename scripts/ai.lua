@@ -10,9 +10,28 @@ local logistics = require("scripts.logistics")
 
 local M = {}
 
-local COMBAT_REACQUIRE_RADIUS = 48
+local COMBAT_REACQUIRE_RADIUS = 64
 local ARRIVAL_RADIUS = 8
-local PATROL_WANDER_RADIUS = 32
+local PLAYER_CLICK_ENEMY_RADIUS = 8
+
+--- Decide whether to return home or keep hunting after an area goes quiet.
+--- @param ai table
+--- @return string next_state
+local function after_combat_clear(ai)
+  local cfg = settings_mod.get()
+  if not cfg.return_home_after_combat then
+    ai.post_combat_since = nil
+    return States.PATROL
+  end
+  ai.post_combat_since = ai.post_combat_since or game.tick
+  local linger = cfg.post_combat_linger_ticks or 0
+  if game.tick - ai.post_combat_since >= linger then
+    ai.post_combat_since = nil
+    return States.RETURNING
+  end
+  -- Keep scanning locally during the linger window.
+  return States.PATROL
+end
 
 local function release_claim(ai)
   if ai.claim_id then
@@ -25,6 +44,10 @@ local function release_claim(ai)
   ai.target_pos = nil
 end
 
+--- Soft claim: always succeeds so multiple spiders can share a target.
+--- @param ai table
+--- @param entity LuaEntity
+--- @return boolean
 local function claim_target(ai, entity)
   release_claim(ai)
   if not entity or not entity.valid then
@@ -32,10 +55,6 @@ local function claim_target(ai, entity)
   end
   local id = targeting.remember(entity)
   if not id then
-    return false
-  end
-  local claimer = storage.target_claims[id]
-  if claimer and claimer ~= ai.unit_number then
     return false
   end
   storage.target_claims[id] = ai.unit_number
@@ -46,12 +65,57 @@ local function claim_target(ai, entity)
 end
 
 local function beyond_pursuit(ai, position)
+  local spidertron = ai.entity
+  if not spidertron or not spidertron.valid then
+    return true
+  end
   local home = { x = ai.home.x, y = ai.home.y }
+  -- Once already out in the field, do not abort a fight for home-distance.
+  if util.distance(home, spidertron.position) > scanner.NEAR_HOME_THRESHOLD then
+    return false
+  end
   return util.distance(home, position) > settings_mod.get().max_pursuit_distance
 end
 
+--- Abort in-flight AI path requests so they cannot overwrite a player order.
+--- @param ai table
+local function cancel_ai_pathing(ai)
+  ai.pending_goal = nil
+  ai.path_start_tick = nil
+  if storage.path_statuses and ai.unit_number then
+    storage.path_statuses[ai.unit_number] = nil
+  end
+end
+
+--- @param surface LuaSurface
+--- @param position MapPosition
+--- @param force LuaForce
+--- @return LuaEntity?
+local function enemy_at_click(surface, position, force)
+  local nearest = surface.find_nearest_enemy({
+    position = position,
+    max_distance = PLAYER_CLICK_ENEMY_RADIUS,
+    force = force,
+  })
+  if nearest and nearest.valid then
+    return nearest
+  end
+  local found = surface.find_entities_filtered({
+    position = position,
+    radius = PLAYER_CLICK_ENEMY_RADIUS,
+    is_military_target = true,
+    limit = 8,
+  })
+  for i = 1, #found do
+    local e = found[i]
+    if e.valid and e.force and force.is_enemy(e.force) then
+      return e
+    end
+  end
+  return nil
+end
+
 --- Deny enable while Spidertron Patrols reports on_patrol when the remote returns data.
---- Note: Patrols' remote `get_patrol_data` historically omitted `return`; if nil, we allow enable.
 local function is_on_patrols(spidertron)
   if not remote.interfaces["SpidertronPatrols"] or not remote.interfaces["SpidertronPatrols"].get_patrol_data then
     return false
@@ -95,9 +159,10 @@ function M.enable(spidertron, player)
     y = spidertron.position.y,
   }
   release_claim(ai)
-  movement.clear(spidertron)
+  cancel_ai_pathing(ai)
+  -- Do not clear player destinations on enable — only stop AI-owned movement.
+  spidertron.follow_target = nil
 
-  -- Ensure vanilla auto-targeting while hunting.
   local params = spidertron.vehicle_automatic_targeting_parameters
   if params then
     spidertron.vehicle_automatic_targeting_parameters = {
@@ -127,12 +192,12 @@ function M.disable(spidertron, player)
     return
   end
   release_claim(ai)
+  cancel_ai_pathing(ai)
   if spidertron and spidertron.valid then
-    movement.clear(spidertron)
+    -- Leave any current player destination alone; only drop follow.
+    spidertron.follow_target = nil
   end
   States.transition(ai, States.IDLE)
-  -- Keep record so GUI can show disabled; optional full remove:
-  -- persistence.remove_ai(ai.unit_number)
 
   script.raise_event("on_spidertron_hunter_disabled", {
     spidertron = spidertron,
@@ -194,9 +259,7 @@ States.register(States.IDLE, {
   enter = function(ai)
     release_claim(ai)
   end,
-  update = function()
-    -- Disabled — nothing to do.
-  end,
+  update = function() end,
 })
 
 States.register(States.PATROL, {
@@ -219,11 +282,8 @@ States.register(States.PATROL, {
       return States.WAITING
     end
 
-    local home = movement.home_position(ai)
-    if util.distance(spidertron.position, home) > PATROL_WANDER_RADIUS then
-      movement.go_to(spidertron, home, true)
-    end
-
+    -- Hunt from current position. Do NOT magnetize back to home here —
+    -- home return only happens via RETURNING after combat.
     return States.SEARCH
   end,
 })
@@ -236,7 +296,16 @@ States.register(States.SEARCH, {
     end
     local enemy = scanner.scan_for_enemy(ai)
     if enemy and claim_target(ai, enemy) then
+      ai.post_combat_since = nil
       return States.MOVING
+    end
+    -- Still lingering after combat with nothing found — maybe time to go home.
+    if ai.post_combat_since and settings_mod.get().return_home_after_combat then
+      local linger = settings_mod.get().post_combat_linger_ticks or 0
+      if game.tick - ai.post_combat_since >= linger then
+        ai.post_combat_since = nil
+        return States.RETURNING
+      end
     end
     return States.PATROL
   end,
@@ -246,6 +315,11 @@ States.register(States.MOVING, {
   enter = function(ai)
     local spidertron = ai.entity
     if not util.is_valid_spidertron(spidertron) then
+      return
+    end
+    -- Player already issued the destination (remote click on enemy).
+    if ai.keep_player_destination then
+      ai.keep_player_destination = nil
       return
     end
     local goal = ai.target_pos
@@ -270,16 +344,12 @@ States.register(States.MOVING, {
     ai.target_pos = { x = target.position.x, y = target.position.y }
     if beyond_pursuit(ai, target.position) then
       release_claim(ai)
-      if settings_mod.get().return_home_after_combat then
-        return States.RETURNING
-      end
-      return States.PATROL
+      return after_combat_clear(ai)
     end
-    -- Close enough to engage (guns have range; don't wait for exact tile).
     if util.distance(spidertron.position, target.position) <= ARRIVAL_RADIUS + 16 then
+      ai.post_combat_since = nil
       return States.ATTACKING
     end
-    -- Refresh path occasionally if target moved far from pending goal.
     if ai.pending_goal and util.distance(ai.pending_goal, target.position) > 32 then
       movement.go_to(spidertron, ai.target_pos, true)
     end
@@ -288,9 +358,9 @@ States.register(States.MOVING, {
 
 States.register(States.ATTACKING, {
   enter = function(ai)
+    ai.post_combat_since = nil
     local spidertron = ai.entity
     if util.is_valid_spidertron(spidertron) and ai.target_entity and ai.target_entity.valid then
-      -- Stick close: follow when practical, else point destination.
       movement.follow(spidertron, ai.target_entity)
     end
   end,
@@ -302,24 +372,26 @@ States.register(States.ATTACKING, {
 
     local target = ai.target_entity
     if target and target.valid and not beyond_pursuit(ai, target.position) then
+      ai.post_combat_since = nil
       if spidertron.follow_target ~= target then
         movement.follow(spidertron, target)
       end
       return
     end
 
-    -- Current target gone — reacquire nearby.
     release_claim(ai)
-    local next_enemy = scanner.find_nearby_combat(ai, spidertron.position, COMBAT_REACQUIRE_RADIUS)
+    local reacquire_radius = math.max(
+      COMBAT_REACQUIRE_RADIUS,
+      settings_mod.get().search_radius * 0.25
+    )
+    local next_enemy = scanner.find_nearby_combat(ai, spidertron.position, reacquire_radius)
     if next_enemy and claim_target(ai, next_enemy) then
+      ai.post_combat_since = nil
       movement.follow(spidertron, next_enemy)
       return
     end
 
-    if settings_mod.get().return_home_after_combat then
-      return States.RETURNING
-    end
-    return States.PATROL
+    return after_combat_clear(ai)
   end,
   exit = function(ai)
     local spidertron = ai.entity
@@ -354,7 +426,6 @@ States.register(States.RETURNING, {
       end
       return States.PATROL
     end
-    -- Re-issue path if idle too long without destination.
     if not spidertron.autopilot_destination and not spidertron.follow_target then
       if game.tick - ai.state_entered_tick > 120 then
         movement.go_to(spidertron, movement.home_position(ai), true)
@@ -379,20 +450,33 @@ States.register(States.RESTOCKING, {
 
 States.register(States.WAITING, {
   enter = function(ai)
-    local spidertron = ai.entity
-    if spidertron and spidertron.valid then
-      -- Leave current destinations; player may have overridden.
-    end
+    cancel_ai_pathing(ai)
   end,
   update = function(ai)
     local spidertron = ai.entity
     if not util.is_valid_spidertron(spidertron) then
       return States.IDLE
     end
-    local max_idle = settings_mod.get().max_idle_time
-    if game.tick - ai.state_entered_tick >= max_idle then
+
+    local arrived = not spidertron.autopilot_destination and not spidertron.follow_target
+    if ai.player_goal and not arrived then
+      -- Still traveling on the player order.
+      local max_idle = settings_mod.get().max_idle_time
+      -- Generous travel budget: max_idle is a floor; long trips use distance heuristic.
+      local travel_budget = math.max(max_idle, 3600)
+      if game.tick - ai.state_entered_tick >= travel_budget then
+        ai.wait_reason = nil
+        ai.player_goal = nil
+        return States.SEARCH
+      end
+      return
+    end
+
+    if arrived or game.tick - ai.state_entered_tick >= settings_mod.get().max_idle_time then
       ai.wait_reason = nil
-      return States.PATROL
+      ai.player_goal = nil
+      -- Resume hunting here — never snap home after a player move order.
+      return States.SEARCH
     end
   end,
 })
@@ -408,18 +492,96 @@ function M.on_spider_command_completed(spidertron)
     States.update(ai)
   elseif ai.state == States.RETURNING then
     States.update(ai)
+  elseif ai.state == States.WAITING and ai.wait_reason == "player-remote" then
+    -- Waypoint finished; if queue empty, resume hunt.
+    if not spidertron.autopilot_destination then
+      ai.wait_reason = nil
+      ai.player_goal = nil
+      States.transition(ai, States.SEARCH)
+    end
   end
 end
 
---- Player remote command — pause AI briefly so we don't fight the player.
+--- Player remote command. Preserve the issued destination; do not fight it.
 --- @param spidertron LuaEntity
-function M.on_player_remote(spidertron)
+--- @param position MapPosition?
+function M.on_player_remote(spidertron, position)
   local ai = persistence.get_ai_for_entity(spidertron)
   if not ai or ai.state == States.IDLE then
     return
   end
+
+  cancel_ai_pathing(ai)
+  release_claim(ai)
+
+  local enemy = nil
+  if position and spidertron.surface then
+    enemy = enemy_at_click(spidertron.surface, position, spidertron.force)
+  end
+
+  if enemy then
+    -- All selected hunters adopt this enemy; keep the player's autopilot path.
+    claim_target(ai, enemy)
+    ai.keep_player_destination = true
+    ai.player_goal = nil
+    ai.wait_reason = nil
+    States.transition(ai, States.MOVING)
+    return
+  end
+
+  -- Non-enemy click: let them finish the player move, then hunt from there.
+  ai.player_goal = position and { x = position.x, y = position.y } or nil
   ai.wait_reason = "player-remote"
   States.transition(ai, States.WAITING)
+end
+
+--- Force an immediate scan for one spider (or all).
+--- @param spidertron LuaEntity?
+--- @return integer found_count
+function M.force_scan(spidertron)
+  local count = 0
+  local function scan_one(ai)
+    if not ai or ai.state == States.IDLE then
+      return
+    end
+    local enemy = scanner.scan_for_enemy(ai)
+    if enemy and claim_target(ai, enemy) then
+      count = count + 1
+      States.transition(ai, States.MOVING)
+    end
+  end
+
+  if spidertron and spidertron.valid then
+    scan_one(persistence.get_ai_for_entity(spidertron))
+  else
+    for _, ai in pairs(storage.spiders) do
+      scan_one(ai)
+    end
+  end
+  return count
+end
+
+--- Debug dump of AI states.
+--- @return table
+function M.debug_dump()
+  local spiders = {}
+  for unit_number, ai in pairs(storage.spiders) do
+    local entity = ai.entity
+    spiders[#spiders + 1] = {
+      unit_number = unit_number,
+      state = ai.state,
+      valid = entity and entity.valid or false,
+      home = ai.home,
+      target = ai.target_entity and ai.target_entity.valid and ai.target_entity.name or nil,
+      wait_reason = ai.wait_reason,
+      position = entity and entity.valid and entity.position or nil,
+    }
+  end
+  return {
+    spiders = spiders,
+    cache = targeting.debug_stats(),
+    settings = settings_mod.get(),
+  }
 end
 
 --- Staggered think for all active spiders.

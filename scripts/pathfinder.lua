@@ -169,9 +169,17 @@ function M.on_path_finished(event)
   end
 
   local ai = storage.spiders[unit_number]
-  -- Abort if goal superseded or AI disabled.
-  if not ai or ai.state == "idle" then
+  -- Abort if goal superseded, AI disabled, or player has taken control.
+  if not ai or ai.state == "idle" or ai.state == "waiting" then
     status.finished = status.finished + 1
+    if status.finished >= status.total then
+      statuses[info.start_tick] = nil
+    end
+    return
+  end
+  if ai.keep_player_destination then
+    status.finished = status.finished + 1
+    status.success = true
     if status.finished >= status.total then
       statuses[info.start_tick] = nil
     end

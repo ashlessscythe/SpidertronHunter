@@ -78,9 +78,10 @@ script.on_event(defines.events.on_player_used_spidertron_remote, function(event)
   if not player or not player.spidertron_remote_selection then
     return
   end
+  local position = event.position
   for _, spidertron in pairs(player.spidertron_remote_selection) do
     if spidertron and spidertron.valid then
-      ai.on_player_remote(spidertron)
+      ai.on_player_remote(spidertron, position)
     end
   end
 end)
@@ -98,6 +99,16 @@ end, {
 })
 
 script.on_event("sh-toggle-autonomy", function(event)
+  local player = game.get_player(event.player_index)
+  if player then
+    ai.toggle_for_player(player)
+  end
+end)
+
+script.on_event(defines.events.on_lua_shortcut, function(event)
+  if event.prototype_name ~= "sh-toggle-autonomy" then
+    return
+  end
   local player = game.get_player(event.player_index)
   if player then
     ai.toggle_for_player(player)

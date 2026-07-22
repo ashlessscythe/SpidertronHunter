@@ -43,6 +43,15 @@ data:extend({
     order = "b-a",
   },
   {
+    type = "int-setting",
+    name = "sh-post-combat-linger-ticks",
+    setting_type = "runtime-global",
+    default_value = 1800,
+    minimum_value = 0,
+    maximum_value = 36000,
+    order = "b-a2",
+  },
+  {
     type = "bool-setting",
     name = "sh-restock-enabled",
     setting_type = "runtime-global",
