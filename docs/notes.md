@@ -109,6 +109,13 @@ defense ratio drops below the threshold. `sh-retreat-include-shields` folds ener
 shield equipment into that ratio. Retreat skips post-combat linger and enters
 RESTOCKING at home so robots can repair / shields can refill.
 
+## Re-engage after retreat (2026-07-22)
+
+`sh-reengage-after-retreat` (default off) stores the map position where tactical
+retreat started. After home restock/repair finishes, REENGAGING pathfinds back
+to that origin and resumes SEARCH. Origin is cleared on arrival, disable, or
+when the toggle is off at restock completion.
+
 ## GUI anchor
 
 Hunter toggle uses `relative_gui_position.right` on the spidertron GUI.

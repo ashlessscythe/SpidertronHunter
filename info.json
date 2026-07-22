@@ -1,10 +1,10 @@
 {
   "name": "SpidertronHunter",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "title": "Spidertron Hunter",
   "author": "Tony",
   "description": "Autonomous Spidertron AI that searches for enemy bases, attacks targets, returns home, and can optionally repair and restock.",
-  "factorio_version": "2.0",
+  "factorio_version": "2.1",
   "dependencies": [
     "base",
     "? space-age",

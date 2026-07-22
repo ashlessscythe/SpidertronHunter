@@ -69,6 +69,13 @@ data:extend({
   },
   {
     type = "bool-setting",
+    name = "sh-reengage-after-retreat",
+    setting_type = "runtime-global",
+    default_value = false,
+    order = "b-a5",
+  },
+  {
+    type = "bool-setting",
     name = "sh-restock-enabled",
     setting_type = "runtime-global",
     default_value = true,

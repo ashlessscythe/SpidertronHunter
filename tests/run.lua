@@ -127,6 +127,7 @@ harness.run("settings DEFAULTS cover combat + retreat", function()
   harness.assert_eq(d.post_combat_linger_ticks, 900)
   harness.assert_eq(d.retreat_health_percent, 25)
   harness.assert_true(d.retreat_include_shields)
+  harness.assert_false(d.reengage_after_retreat)
   harness.assert_eq(d.scan_interval, 60)
   harness.assert_eq(d.spiders_per_think, 8)
 end)
@@ -135,7 +136,7 @@ end)
 -- FSM states
 ---------------------------------------------------------------------------
 
-harness.run("eight FSM state constants", function()
+harness.run("nine FSM state constants", function()
   local names = {
     States.IDLE,
     States.PATROL,
@@ -144,9 +145,10 @@ harness.run("eight FSM state constants", function()
     States.ATTACKING,
     States.RETURNING,
     States.RESTOCKING,
+    States.REENGAGING,
     States.WAITING,
   }
-  harness.assert_eq(#names, 8)
+  harness.assert_eq(#names, 9)
   for i = 1, #names do
     harness.assert_true(schema.VALID_STATES[names[i]], names[i])
   end
@@ -411,6 +413,19 @@ harness.run("tactical retreat when below threshold", function()
   harness.assert_false(should_retreat(0.1, 0))
 end)
 
+harness.run("re-engage after restock only when toggled and origin set", function()
+  local function next_after_restock(reengage, has_origin)
+    if reengage and has_origin then
+      return "reengaging"
+    end
+    return "patrol"
+  end
+  harness.assert_eq(next_after_restock(false, true), "patrol")
+  harness.assert_eq(next_after_restock(true, false), "patrol")
+  harness.assert_eq(next_after_restock(true, true), "reengaging")
+  harness.assert_eq(next_after_restock(false, false), "patrol")
+end)
+
 ---------------------------------------------------------------------------
 -- schema / migrations
 ---------------------------------------------------------------------------
@@ -671,7 +686,7 @@ harness.run("info.json name and version for portal zip", function()
 end)
 
 harness.run("migration files exist for schema versions", function()
-  for _, ver in ipairs({ "0.1.0", "0.1.5", "0.1.7", "0.1.9" }) do
+  for _, ver in ipairs({ "0.1.0", "0.1.5", "0.1.7", "0.1.9", "0.1.15" }) do
     local path = "migrations/" .. ver .. ".lua"
     local f = io.open(path, "r")
     harness.assert_true(f ~= nil, "missing " .. path)

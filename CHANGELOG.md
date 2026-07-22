@@ -2,6 +2,16 @@
 
 All notable changes to Spidertron Hunter are documented here.
 
+## [0.1.15] — 2026-07-22
+
+### Added
+
+- Optional re-engage after tactical retreat: when enabled, hunters return to the coordinates where they retreated from after restock/repair, then resume hunting. Default off (`sh-reengage-after-retreat`).
+
+### Changed
+
+- Targets Factorio 2.1.
+
 ## [0.1.13] — 2026-07-22
 
 ### Added

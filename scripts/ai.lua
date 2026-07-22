@@ -113,6 +113,12 @@ local function check_tactical_retreat(ai)
     cancel_ai_pathing(ai)
     ai.post_combat_since = nil
     ai.retreating = true
+    -- Remember where the bail-out started so re-engage can return here.
+    ai.retreat_origin = {
+      surface_index = spidertron.surface_index,
+      x = spidertron.position.x,
+      y = spidertron.position.y,
+    }
     util.debug_log(
       "retreat " .. string.format("%.0f", ratio * 100) .. "%",
       spidertron
@@ -120,6 +126,16 @@ local function check_tactical_retreat(ai)
     return States.RETURNING
   end
   return nil
+end
+
+--- @param ai table
+--- @return MapPosition?
+local function retreat_origin_position(ai)
+  local origin = ai.retreat_origin
+  if not origin then
+    return nil
+  end
+  return { x = origin.x, y = origin.y }
 end
 
 --- @param surface LuaSurface
@@ -183,6 +199,7 @@ function M.enable(spidertron, player)
   }
   release_claim(ai)
   cancel_ai_pathing(ai)
+  ai.retreat_origin = nil
   -- Do not clear player destinations on enable — only stop AI-owned movement.
   spidertron.follow_target = nil
 
@@ -217,6 +234,7 @@ function M.disable(spidertron, player)
   end
   release_claim(ai)
   cancel_ai_pathing(ai)
+  ai.retreat_origin = nil
   if spidertron and spidertron.valid then
     -- Leave any current player destination alone; only drop follow.
     spidertron.follow_target = nil
@@ -547,7 +565,53 @@ States.register(States.RESTOCKING, {
   end,
   update = function(ai)
     if logistics.update_restock(ai) then
+      local cfg = settings_mod.get()
+      if cfg.reengage_after_retreat and ai.retreat_origin then
+        return States.REENGAGING
+      end
+      ai.retreat_origin = nil
       return States.PATROL
+    end
+  end,
+})
+
+States.register(States.REENGAGING, {
+  enter = function(ai)
+    local spidertron = ai.entity
+    local goal = retreat_origin_position(ai)
+    if util.is_valid_spidertron(spidertron) and goal then
+      movement.go_to(spidertron, goal, true)
+    end
+  end,
+  update = function(ai)
+    local spidertron = ai.entity
+    if not util.is_valid_spidertron(spidertron) then
+      return
+    end
+    local cfg = settings_mod.get()
+    local origin = ai.retreat_origin
+    local goal = retreat_origin_position(ai)
+    if not cfg.reengage_after_retreat or not origin or not goal then
+      ai.retreat_origin = nil
+      return States.SEARCH
+    end
+    if spidertron.surface_index ~= origin.surface_index then
+      ai.retreat_origin = nil
+      ai.wait_reason = "wrong-surface"
+      return States.WAITING
+    end
+    if movement.is_near(spidertron, goal, ARRIVAL_RADIUS) then
+      movement.clear(spidertron)
+      ai.retreat_origin = nil
+      util.debug_log("re-engage", spidertron)
+      return States.SEARCH
+    end
+    if not spidertron.autopilot_destination and not spidertron.follow_target then
+      if game.tick - ai.state_entered_tick > 120 then
+        movement.go_to(spidertron, goal, true)
+      end
+    else
+      pathfinder.repath_if_stuck(spidertron, goal)
     end
   end,
 })
@@ -594,7 +658,7 @@ function M.on_spider_command_completed(spidertron)
   end
   if ai.state == States.MOVING then
     States.update(ai)
-  elseif ai.state == States.RETURNING then
+  elseif ai.state == States.RETURNING or ai.state == States.REENGAGING then
     States.update(ai)
   elseif ai.state == States.WAITING and ai.wait_reason == "player-remote" then
     -- Waypoint finished; if queue empty, resume hunt.
@@ -676,6 +740,7 @@ function M.debug_dump()
       state = ai.state,
       valid = entity and entity.valid or false,
       home = ai.home,
+      retreat_origin = ai.retreat_origin,
       target = ai.target_entity and ai.target_entity.valid and ai.target_entity.name or nil,
       wait_reason = ai.wait_reason,
       position = entity and entity.valid and entity.position or nil,

@@ -10,6 +10,7 @@ local VALID_STATES = {
   attacking = true,
   returning = true,
   restocking = true,
+  reengaging = true,
   waiting = true,
 }
 
@@ -70,6 +71,7 @@ function M.migrate_ai_records()
       ai.player_goal = nil
       ai.wait_reason = nil
       ai.retreating = nil
+      ai.retreat_origin = nil
       ai.post_combat_since = nil
       ai.combat_last_move_tick = nil
       ai.combat_next_move_tick = nil

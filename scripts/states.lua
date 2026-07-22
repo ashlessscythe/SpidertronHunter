@@ -10,6 +10,7 @@ States.MOVING = "moving"
 States.ATTACKING = "attacking"
 States.RETURNING = "returning"
 States.RESTOCKING = "restocking"
+States.REENGAGING = "reengaging"
 States.WAITING = "waiting"
 
 -- Skip patrol↔search chatter; only surface meaningful phase changes.
@@ -18,6 +19,7 @@ local DEBUG_FLYING = {
   attacking = true,
   returning = true,
   restocking = true,
+  reengaging = true,
   waiting = true,
 }
 
