@@ -75,6 +75,8 @@ Hunter AI and manual patrol schedules are separate control modes; do not run bot
 
 This project is developed with AI-assisted tooling. All architecture, testing, and release decisions are reviewed before publication.
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, tests, packaging, and PR expectations. Maintainers: [docs/releasing.md](docs/releasing.md).
+
 ### Tests
 
 ```bash
@@ -90,9 +92,7 @@ lua tests/run.lua
 
 GitHub Actions:
 - `.github/workflows/test.yml` — runs pure Lua tests on push/PR
-- `.github/workflows/release.yml` — on `v*` tags (or manual dispatch), builds `SpidertronHunter_0.x.x.zip` and attaches it to a GitHub Release ready for Mod Portal upload
-
-Tag example: bump `info.json` version, commit, then `git tag v0.1.9 && git push origin v0.1.9`.
+- `.github/workflows/release.yml` — on `v*` tags (or manual dispatch), builds `SpidertronHunter_0.x.x.zip` and attaches it to a GitHub Release
 
 ## Install (dev)
 
@@ -106,4 +106,5 @@ Third-party attributions for adapted code (where applicable) are listed in [NOTI
 
 ## Notes
 
-Design and UPS decisions live in [docs/notes.md](docs/notes.md).
+- Design and UPS decisions: [docs/notes.md](docs/notes.md)
+- User-facing history: [CHANGELOG.md](CHANGELOG.md)

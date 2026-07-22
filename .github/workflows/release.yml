@@ -11,6 +11,10 @@ on:
         type: boolean
         default: true
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -72,9 +76,44 @@ jobs:
 
       - name: Build portal zip
         run: |
+          sudo apt-get update
+          sudo apt-get install -y zip unzip
           chmod +x scripts/package_mod.sh
           ./scripts/package_mod.sh dist
-          test -f "dist/${{ steps.meta.outputs.zip_name }}"
+
+      - name: Validate archive structure
+        run: |
+          NAME="${{ steps.meta.outputs.name }}"
+          VERSION="${{ steps.meta.outputs.version }}"
+          ZIP="dist/${{ steps.meta.outputs.zip_name }}"
+          EXPECTED_FOLDER="${NAME}_${VERSION}"
+          EXPECTED_PREFIX="${EXPECTED_FOLDER}/"
+
+          if [[ ! -f "${ZIP}" ]]; then
+            echo "Archive not found: ${ZIP}"
+            exit 1
+          fi
+
+          TOP_LEVEL="$(unzip -Z1 "${ZIP}" | awk -F/ 'NF{print $1}' | sort -u)"
+          COUNT="$(printf '%s\n' "${TOP_LEVEL}" | grep -c . || true)"
+
+          if [[ "${COUNT}" -ne 1 ]]; then
+            echo "Expected exactly one top-level entry, found ${COUNT}:"
+            printf '%s\n' "${TOP_LEVEL}"
+            exit 1
+          fi
+
+          if [[ "${TOP_LEVEL}" != "${EXPECTED_FOLDER}" ]]; then
+            echo "Top-level folder '${TOP_LEVEL}' does not match expected '${EXPECTED_FOLDER}'"
+            exit 1
+          fi
+
+          if ! unzip -Z1 "${ZIP}" | grep -qxF "${EXPECTED_PREFIX}info.json"; then
+            echo "Missing ${EXPECTED_PREFIX}info.json inside archive"
+            exit 1
+          fi
+
+          echo "Archive OK: ${ZIP} → ${EXPECTED_PREFIX}"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -90,15 +129,17 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.meta.outputs.tag }}
-          name: Spidertron Hunter ${{ steps.meta.outputs.version }}
+          name: Spidertron Hunter v${{ steps.meta.outputs.version }}
           draft: ${{ github.ref_type != 'tag' }}
           generate_release_notes: true
           files: dist/${{ steps.meta.outputs.zip_name }}
           body: |
-            Factorio Mod Portal package: `${{ steps.meta.outputs.zip_name }}`
+            ## Spidertron Hunter v${{ steps.meta.outputs.version }}
 
-            Upload this zip at https://mods.factorio.com (Mod → Releases → Upload).
+            ### Downloads
 
-            The archive contains a single top-level folder `${{ steps.meta.outputs.name }}_${{ steps.meta.outputs.version }}/` as required by the portal.
+            - `${{ steps.meta.outputs.zip_name }}` — Release package
+
+            ### Changes
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
