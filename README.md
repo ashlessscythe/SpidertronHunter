@@ -16,10 +16,12 @@ No manual patrol routes required.
 1. Unlock spidertrons (and the Hunter toolbar shortcut).
 2. Select one or more spidertrons with the remote (or open a spidertron GUI).
 3. Toggle Hunter AI via:
-   - Toolbar shortcut **Toggle Spidertron Hunter** (highlights when active)
+   - Toolbar shortcut **Toggle Spidertron Hunter** (highlights when the whole selection is active)
    - Hotkey `Ctrl+Shift+H`
    - **Hunter AI** button on the right side of the spidertron GUI
 4. Home is set to the spidertron's position when AI is enabled.
+5. Multi-select toggle: if any selected hunter is off → enable all; if all are on → disable all.
+6. Per-spidertron combat style via the dropdown next to the enable button.
 
 ## Behavior
 

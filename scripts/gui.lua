@@ -1,4 +1,4 @@
---- Relative GUI toggle on spider-vehicle (right side, above Patrols schedule when present).
+--- Relative GUI toggle + combat style on spider-vehicle (right side).
 local ai = require("scripts.ai")
 local util = require("scripts.util")
 local persistence = require("scripts.persistence")
@@ -7,6 +7,18 @@ local M = {}
 
 local FRAME_NAME = "sh-relative-frame"
 local BUTTON_NAME = "sh-toggle-button"
+local STYLE_DROPDOWN = "sh-combat-style-dropdown"
+
+local STYLE_ORDER = { "hold", "strafe", "circle", "flank" }
+
+local function style_index(style)
+  for i = 1, #STYLE_ORDER do
+    if STYLE_ORDER[i] == style then
+      return i
+    end
+  end
+  return 2 -- strafe
+end
 
 --- @param player LuaPlayer
 --- @return LuaEntity?
@@ -28,8 +40,6 @@ local function build_gui(player, spidertron)
   end
 
   local enabled = ai.is_enabled(spidertron)
-  -- Right side of the spidertron GUI — sits in the empty column above
-  -- Spidertron Patrols' schedule/camera when that mod is present.
   local frame = relative.add({
     type = "frame",
     name = FRAME_NAME,
@@ -53,6 +63,25 @@ local function build_gui(player, spidertron)
     caption = enabled and { "sh.enabled" } or { "sh.toggle-button" },
     tooltip = { "sh.toggle-tooltip" },
     style = "button",
+    tags = { sh_unit_number = spidertron.unit_number },
+  })
+
+  frame.add({
+    type = "label",
+    caption = { "sh.combat-style-label" },
+  })
+
+  local items = {}
+  for i = 1, #STYLE_ORDER do
+    items[i] = { "sh.combat-style-" .. STYLE_ORDER[i] }
+  end
+  local current = ai.get_combat_style(spidertron)
+  frame.add({
+    type = "drop-down",
+    name = STYLE_DROPDOWN,
+    items = items,
+    selected_index = style_index(current),
+    tooltip = { "sh.combat-style-tooltip" },
     tags = { sh_unit_number = spidertron.unit_number },
   })
 
@@ -94,6 +123,23 @@ function M.on_gui_closed(event)
   end
 end
 
+--- @param unit_number integer?
+--- @param player LuaPlayer
+--- @return LuaEntity?
+local function resolve_spidertron(unit_number, player)
+  local spidertron = opened_spidertron(player)
+  if spidertron then
+    return spidertron
+  end
+  if unit_number then
+    local ai_data = persistence.get_ai(unit_number)
+    if ai_data and ai_data.entity and ai_data.entity.valid then
+      return ai_data.entity
+    end
+  end
+  return nil
+end
+
 --- @param event EventData.on_gui_click
 function M.on_gui_click(event)
   local element = event.element
@@ -105,14 +151,7 @@ function M.on_gui_click(event)
     return
   end
 
-  local spidertron = opened_spidertron(player)
-  if not spidertron then
-    local unit_number = element.tags and element.tags.sh_unit_number
-    local ai_data = unit_number and persistence.get_ai(unit_number)
-    if ai_data and ai_data.entity and ai_data.entity.valid then
-      spidertron = ai_data.entity
-    end
-  end
+  local spidertron = resolve_spidertron(element.tags and element.tags.sh_unit_number, player)
   if not spidertron then
     return
   end
@@ -122,5 +161,32 @@ function M.on_gui_click(event)
     build_gui(player, spidertron)
   end
 end
+
+--- @param event EventData.on_gui_selection_state_changed
+function M.on_gui_selection_state_changed(event)
+  local element = event.element
+  if not element or not element.valid or element.name ~= STYLE_DROPDOWN then
+    return
+  end
+  local player = game.get_player(event.player_index)
+  if not player then
+    return
+  end
+  local spidertron = resolve_spidertron(element.tags and element.tags.sh_unit_number, player)
+  if not spidertron then
+    return
+  end
+  local idx = element.selected_index
+  local style = STYLE_ORDER[idx]
+  if not style then
+    return
+  end
+  ai.set_combat_style(spidertron, style)
+  -- Also update global default so new hunters match the last GUI choice.
+  -- Per-spider override is authoritative for this entity via ai.combat_style.
+  util.debug_log("combat style #" .. tostring(spidertron.unit_number) .. " -> " .. style)
+end
+
+M.STYLE_ORDER = STYLE_ORDER
 
 return M

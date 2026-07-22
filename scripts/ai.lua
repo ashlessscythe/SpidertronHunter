@@ -259,7 +259,8 @@ function M.toggle(spidertron, player)
 end
 
 --- @param player LuaPlayer
-function M.toggle_for_player(player)
+--- @return LuaEntity[]
+local function collect_targets(player)
   local targets = {}
   if player.spidertron_remote_selection then
     for _, e in pairs(player.spidertron_remote_selection) do
@@ -276,13 +277,64 @@ function M.toggle_for_player(player)
   then
     targets[1] = player.opened
   end
+  return targets
+end
+
+--- Unify selection: if every target is enabled → disable all; otherwise enable all.
+--- Mixed selections become fully enabled so the toolbar highlight matches the group.
+--- @param player LuaPlayer
+function M.toggle_for_player(player)
+  local targets = collect_targets(player)
   if #targets == 0 then
     util.flying_text(player, { "sh.no-selection" })
     return
   end
+
+  local all_enabled = true
   for i = 1, #targets do
-    M.toggle(targets[i], player)
+    if not M.is_enabled(targets[i]) then
+      all_enabled = false
+      break
+    end
   end
+
+  if all_enabled then
+    for i = 1, #targets do
+      M.disable(targets[i], player)
+    end
+  else
+    for i = 1, #targets do
+      if not M.is_enabled(targets[i]) then
+        M.enable(targets[i], player)
+      end
+    end
+  end
+  shortcut.sync_player(player)
+end
+
+--- Effective combat style for a spider (per-spider override, else global setting).
+--- @param spidertron LuaEntity
+--- @return string
+function M.get_combat_style(spidertron)
+  local ai_data = persistence.get_ai_for_entity(spidertron)
+  if ai_data and ai_data.combat_style then
+    return ai_data.combat_style
+  end
+  return settings_mod.get().combat_style or "strafe"
+end
+
+--- @param spidertron LuaEntity
+--- @param style string
+function M.set_combat_style(spidertron, style)
+  if not util.is_valid_spidertron(spidertron) then
+    return
+  end
+  local ai_data = persistence.get_ai_for_entity(spidertron)
+  if not ai_data then
+    ai_data = persistence.create_ai(spidertron)
+    ai_data.state = States.IDLE
+  end
+  ai_data.combat_style = style
 end
 
 -- --- State handlers -------------------------------------------------------

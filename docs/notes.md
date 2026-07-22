@@ -114,3 +114,11 @@ ATTACKING no longer uses `follow_target` (walked into spitters/acid). `combat.lu
 issues short direct autopilot hops at `sh-combat-range` with styles hold/strafe/
 circle/flank, pauses to shoot, and rejects waypoints near `acid-splash-fire-*`.
 
+## Multi-select unify + GUI style (2026-07-21)
+
+Toggle on a multi-selection enables all if any are off, else disables all — so the
+toolbar highlight means "whole selection is hunting." Per-spider combat style is
+chosen from a drop-down next to the Hunter button; stored on `ai.combat_style`.
+
+Custom toolbar art: generated spidertron-with-gun icon in `graphics/shortcut/`.
+

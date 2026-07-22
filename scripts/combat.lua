@@ -84,7 +84,7 @@ end
 function M.pick_position(spidertron, target, ai)
   local cfg = settings_mod.get()
   local range = cfg.combat_range or 20
-  local style = cfg.combat_style or "strafe"
+  local style = ai.combat_style or cfg.combat_style or "strafe"
   local avoid_acid = cfg.avoid_acid ~= false
   local tp = target.position
   local sp = spidertron.position
@@ -143,7 +143,7 @@ function M.should_reposition(ai, spidertron, target)
   local range = cfg.combat_range or 20
   local move_interval = cfg.combat_move_interval or 90
   local pause = cfg.combat_pause_ticks or 45
-  local style = cfg.combat_style or "strafe"
+  local style = ai.combat_style or cfg.combat_style or "strafe"
   local dist = util.distance(spidertron.position, target.position)
 
   local urgent = cfg.avoid_acid ~= false and (

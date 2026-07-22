@@ -142,6 +142,8 @@ script.on_event(defines.events.on_gui_click, function(event)
   end
 end)
 
+script.on_event(defines.events.on_gui_selection_state_changed, gui.on_gui_selection_state_changed)
+
 -- Soft-compat with SpidertronEnhancements entity replace (same pattern as Patrols).
 if prototypes.custom_event["on_spidertron_replaced"] then
   script.on_event("on_spidertron_replaced", function(event)
