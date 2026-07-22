@@ -52,6 +52,22 @@ data:extend({
     order = "b-a2",
   },
   {
+    type = "int-setting",
+    name = "sh-retreat-health-percent",
+    setting_type = "runtime-global",
+    default_value = 25,
+    minimum_value = 0,
+    maximum_value = 100,
+    order = "b-a3",
+  },
+  {
+    type = "bool-setting",
+    name = "sh-retreat-include-shields",
+    setting_type = "runtime-global",
+    default_value = true,
+    order = "b-a4",
+  },
+  {
     type = "bool-setting",
     name = "sh-restock-enabled",
     setting_type = "runtime-global",

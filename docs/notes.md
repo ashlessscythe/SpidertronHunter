@@ -91,3 +91,15 @@ camps instead of snapping home the instant the last biter dies.
 Custom `__SpidertronHunter__/graphics/shortcut/hunter-*.png` — RTS tool flipped
 180° and amber-tinted so it is distinct from the vanilla remote shortcut.
 
+## Tactical retreat (2026-07-21)
+
+`sh-retreat-health-percent` (default 25, 0=off) forces RETURNING when combined
+defense ratio drops below the threshold. `sh-retreat-include-shields` folds energy
+shield equipment into that ratio. Retreat skips post-combat linger and enters
+RESTOCKING at home so robots can repair / shields can refill.
+
+## GUI anchor
+
+Hunter toggle uses `relative_gui_position.right` (same column as Spidertron Patrols
+schedule/camera) instead of `top`, which was floating above the whole screen.
+

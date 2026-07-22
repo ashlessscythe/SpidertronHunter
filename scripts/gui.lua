@@ -1,4 +1,4 @@
---- Relative GUI toggle on spider-vehicle.
+--- Relative GUI toggle on spider-vehicle (right side, above Patrols schedule when present).
 local ai = require("scripts.ai")
 local util = require("scripts.util")
 local persistence = require("scripts.persistence")
@@ -28,23 +28,29 @@ local function build_gui(player, spidertron)
   end
 
   local enabled = ai.is_enabled(spidertron)
+  -- Right side of the spidertron GUI — sits in the empty column above
+  -- Spidertron Patrols' schedule/camera when that mod is present.
   local frame = relative.add({
     type = "frame",
     name = FRAME_NAME,
-    caption = { "mod-name.SpidertronHunter" },
-    direction = "vertical",
+    direction = "horizontal",
     anchor = {
       gui = defines.relative_gui_type.spider_vehicle_gui,
-      position = defines.relative_gui_position.top,
+      position = defines.relative_gui_position.right,
       name = spidertron.name,
     },
   })
 
-  local flow = frame.add({ type = "flow", direction = "horizontal" })
-  flow.add({
+  frame.add({
+    type = "label",
+    caption = { "mod-name.SpidertronHunter" },
+    style = "frame_title",
+  })
+
+  frame.add({
     type = "button",
     name = BUTTON_NAME,
-    caption = { "sh.toggle-button" },
+    caption = enabled and { "sh.enabled" } or { "sh.toggle-button" },
     tooltip = { "sh.toggle-tooltip" },
     style = "button",
     tags = { sh_unit_number = spidertron.unit_number },
@@ -52,12 +58,12 @@ local function build_gui(player, spidertron)
 
   local ai_data = persistence.get_ai_for_entity(spidertron)
   if enabled and ai_data and ai_data.state then
-    flow.add({
+    frame.add({
       type = "label",
       caption = { "sh.state-" .. ai_data.state },
     })
   elseif not enabled then
-    flow.add({
+    frame.add({
       type = "label",
       caption = { "sh.disabled" },
     })

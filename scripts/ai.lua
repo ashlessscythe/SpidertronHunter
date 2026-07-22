@@ -87,6 +87,34 @@ local function cancel_ai_pathing(ai)
   end
 end
 
+--- Tactical retreat when hull/shield integrity drops below the configured %.
+--- @param ai table
+--- @return string? next_state
+local function check_tactical_retreat(ai)
+  local cfg = settings_mod.get()
+  local threshold = cfg.retreat_health_percent or 0
+  if threshold <= 0 then
+    return nil
+  end
+  local spidertron = ai.entity
+  if not util.is_valid_spidertron(spidertron) then
+    return nil
+  end
+  local ratio = util.defense_ratio(spidertron, cfg.retreat_include_shields)
+  if ratio * 100 < threshold then
+    release_claim(ai)
+    cancel_ai_pathing(ai)
+    ai.post_combat_since = nil
+    ai.retreating = true
+    util.debug_log(
+      "tactical retreat #" .. tostring(ai.unit_number)
+        .. " defense=" .. string.format("%.0f", ratio * 100) .. "%"
+    )
+    return States.RETURNING
+  end
+  return nil
+end
+
 --- @param surface LuaSurface
 --- @param position MapPosition
 --- @param force LuaForce
@@ -272,6 +300,10 @@ States.register(States.PATROL, {
     if not util.is_valid_spidertron(spidertron) then
       return States.IDLE
     end
+    local retreat = check_tactical_retreat(ai)
+    if retreat then
+      return retreat
+    end
     if game.tick < (ai.next_think_tick or 0) then
       return
     end
@@ -283,7 +315,7 @@ States.register(States.PATROL, {
     end
 
     -- Hunt from current position. Do NOT magnetize back to home here —
-    -- home return only happens via RETURNING after combat.
+    -- home return only happens via RETURNING after combat / retreat.
     return States.SEARCH
   end,
 })
@@ -293,6 +325,10 @@ States.register(States.SEARCH, {
     local spidertron = ai.entity
     if not util.is_valid_spidertron(spidertron) then
       return States.IDLE
+    end
+    local retreat = check_tactical_retreat(ai)
+    if retreat then
+      return retreat
     end
     local enemy = scanner.scan_for_enemy(ai)
     if enemy and claim_target(ai, enemy) then
@@ -336,6 +372,10 @@ States.register(States.MOVING, {
     if not util.is_valid_spidertron(spidertron) then
       return States.IDLE
     end
+    local retreat = check_tactical_retreat(ai)
+    if retreat then
+      return retreat
+    end
     local target = ai.target_entity
     if not target or not target.valid then
       release_claim(ai)
@@ -368,6 +408,10 @@ States.register(States.ATTACKING, {
     local spidertron = ai.entity
     if not util.is_valid_spidertron(spidertron) then
       return States.IDLE
+    end
+    local retreat = check_tactical_retreat(ai)
+    if retreat then
+      return retreat
     end
 
     local target = ai.target_entity
@@ -420,8 +464,10 @@ States.register(States.RETURNING, {
     end
     if movement.is_near(spidertron, movement.home_position(ai), ARRIVAL_RADIUS) then
       movement.clear(spidertron)
+      local was_retreating = ai.retreating
+      ai.retreating = nil
       local cfg = settings_mod.get()
-      if cfg.restock_enabled or cfg.repair_enabled then
+      if cfg.restock_enabled or cfg.repair_enabled or was_retreating then
         return States.RESTOCKING
       end
       return States.PATROL

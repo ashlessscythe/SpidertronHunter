@@ -59,6 +59,39 @@ function util.chunk_key(position)
   return cx * 65536 + cy
 end
 
+--- Combined hull (+ optional shield) integrity in [0, 1].
+--- @param spidertron LuaEntity
+--- @param include_shields boolean?
+--- @return number
+function util.defense_ratio(spidertron, include_shields)
+  if not spidertron or not spidertron.valid then
+    return 0
+  end
+  local health = spidertron.health or 0
+  local max_health = spidertron.max_health or 1
+  if max_health <= 0 then
+    max_health = 1
+  end
+  if not include_shields then
+    return health / max_health
+  end
+
+  local shield = 0
+  local max_shield = 0
+  local grid = spidertron.grid
+  if grid then
+    for _, eq in pairs(grid.equipment) do
+      local eq_max = eq.max_shield or 0
+      if eq_max > 0 then
+        shield = shield + (eq.shield or 0)
+        max_shield = max_shield + eq_max
+      end
+    end
+  end
+
+  return (health + shield) / (max_health + max_shield)
+end
+
 --- flib-style capped iteration for UPS staggering.
 --- @param tbl table
 --- @param from_k any
