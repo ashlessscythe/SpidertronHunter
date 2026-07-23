@@ -2,6 +2,12 @@
 
 All notable changes to Spidertron Hunter are documented here.
 
+## [0.1.16] — 2026-07-23
+
+### Changed
+
+- Targets Factorio 2.0.
+
 ## [0.1.15] — 2026-07-22
 
 ### Added
