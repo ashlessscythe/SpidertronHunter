@@ -120,7 +120,7 @@ end)
 -- settings defaults
 ---------------------------------------------------------------------------
 
-harness.run("settings DEFAULTS cover combat + retreat", function()
+harness.run("settings DEFAULTS cover combat + retreat + scout", function()
   local d = settings_mod.DEFAULTS
   harness.assert_eq(d.combat_style, "strafe")
   harness.assert_eq(d.combat_range, 22)
@@ -131,13 +131,17 @@ harness.run("settings DEFAULTS cover combat + retreat", function()
   harness.assert_false(d.sticky_home_on_first_enable)
   harness.assert_eq(d.scan_interval, 60)
   harness.assert_eq(d.spiders_per_think, 8)
+  harness.assert_eq(d.scout_algorithm, "frontier")
+  harness.assert_eq(d.scout_max_distance, 1024)
+  harness.assert_eq(d.scout_standoff_distance, 48)
+  harness.assert_true(d.scout_auto_resume)
 end)
 
 ---------------------------------------------------------------------------
 -- FSM states
 ---------------------------------------------------------------------------
 
-harness.run("nine FSM state constants", function()
+harness.run("ten FSM state constants", function()
   local names = {
     States.IDLE,
     States.PATROL,
@@ -148,8 +152,9 @@ harness.run("nine FSM state constants", function()
     States.RESTOCKING,
     States.REENGAGING,
     States.WAITING,
+    States.SCOUT_EXPLORE,
   }
-  harness.assert_eq(#names, 9)
+  harness.assert_eq(#names, 10)
   for i = 1, #names do
     harness.assert_true(schema.VALID_STATES[names[i]], names[i])
   end
@@ -474,9 +479,11 @@ harness.run("schema.migrate_ai_records sanitizes bad state and claims", function
   harness.assert_eq(storage.spiders[10].home.y, 0)
   harness.assert_eq(storage.spiders[10].home.surface_index, 1)
   harness.assert_false(storage.spiders[10].home_sticky)
+  harness.assert_eq(storage.spiders[10].role, "hunter")
   harness.assert_eq(storage.spiders[10].combat_style, nil)
   harness.assert_eq(storage.spiders[10].keep_player_destination, nil)
   harness.assert_eq(storage.spiders[10].pending_goal, nil)
+  harness.assert_eq(type(storage.spiders[10].waypoints), "table")
   harness.assert_eq(storage.spiders[11].state, "attacking")
   harness.assert_eq(storage.spiders[11].combat_style, "flank")
   harness.assert_false(storage.spiders[11].home_sticky)
@@ -484,6 +491,100 @@ harness.run("schema.migrate_ai_records sanitizes bad state and claims", function
   harness.assert_eq(storage.target_claims[101], nil)
   harness.assert_eq(#storage.path_queue, 0)
   harness.assert_eq(next(storage.path_requests), nil)
+end)
+
+---------------------------------------------------------------------------
+-- Scout algo helpers (pure)
+---------------------------------------------------------------------------
+
+local scout = require("scripts.scout")
+
+harness.run("scout.nearest_within picks closest under max", function()
+  local center = { x = 0, y = 0 }
+  local picked = scout.nearest_within(center, 100, {
+    { x = 80, y = 0 },
+    { x = 10, y = 0 },
+    { x = 200, y = 0 },
+  })
+  harness.assert_eq(picked.x, 10)
+  harness.assert_eq(picked.y, 0)
+  harness.assert_eq(scout.nearest_within(center, 5, { { x = 80, y = 0 } }), nil)
+end)
+
+harness.run("scout.lawnmower_next advances strips and flips dir", function()
+  local center = { x = 0, y = 0 }
+  local g1, c1 = scout.lawnmower_next(center, 96, 48, nil)
+  harness.assert_true(g1.x > 0)
+  harness.assert_eq(c1.strip, 1)
+  harness.assert_eq(c1.dir, -1)
+  local g2, c2 = scout.lawnmower_next(center, 96, 48, c1)
+  harness.assert_true(g2.x < 0)
+  harness.assert_eq(c2.strip, 2)
+  harness.assert_eq(c2.dir, 1)
+end)
+
+harness.run("scout.spiral_next expands then wraps at max", function()
+  local center = { x = 0, y = 0 }
+  local g0, c0 = scout.spiral_next(center, 200, 32, nil)
+  harness.assert_eq(g0.x, 0)
+  harness.assert_eq(g0.y, 0)
+  harness.assert_eq(c0.index, 1)
+  local g1 = scout.spiral_next(center, 200, 32, c0)
+  harness.assert_true(util.distance(center, g1) > 0)
+  local _, wrap = scout.spiral_next(center, 32, 32, { index = 9999 })
+  harness.assert_eq(wrap.index, 0)
+end)
+
+harness.run("scout waypoint queue FIFO", function()
+  local ai = { waypoints = {} }
+  scout.add_waypoint(ai, { x = 1, y = 2 })
+  scout.add_waypoint(ai, { x = 3, y = 4 })
+  harness.assert_true(scout.has_waypoints(ai))
+  local a = scout.peek_waypoint(ai)
+  harness.assert_eq(a.x, 1)
+  harness.assert_eq(scout.pop_waypoint(ai).x, 1)
+  harness.assert_eq(scout.pop_waypoint(ai).y, 4)
+  harness.assert_false(scout.has_waypoints(ai))
+  scout.clear_waypoints(ai)
+  harness.assert_eq(scout.pop_waypoint(ai), nil)
+end)
+
+harness.run("scout.has_weapons ammo and laser defense", function()
+  harness.assert_false(scout.has_weapons(nil))
+  harness.assert_false(scout.has_weapons({
+    valid = true,
+    get_inventory = function()
+      return { is_empty = function() return true end }
+    end,
+  }))
+  harness.assert_true(scout.has_weapons({
+    valid = true,
+    get_inventory = function()
+      return { is_empty = function() return false end }
+    end,
+  }))
+  harness.assert_true(scout.has_weapons({
+    valid = true,
+    get_inventory = function()
+      return { is_empty = function() return true end }
+    end,
+    grid = { equipment = { { type = "energy-shield-equipment" }, { type = "active-defense-equipment" } } },
+  }))
+  harness.assert_false(scout.has_weapons({
+    valid = true,
+    get_inventory = function()
+      return { is_empty = function() return true end }
+    end,
+    grid = { equipment = { { type = "energy-shield-equipment" } } },
+  }))
+end)
+
+harness.run("scout.safe_detour steps away from threat", function()
+  local from = { x = 10, y = 0 }
+  local threat = { x = 0, y = 0 }
+  local detour = scout.safe_detour(from, threat, 20)
+  harness.assert_true(detour.x > from.x)
+  harness.assert_near(detour.y, 0)
 end)
 
 ---------------------------------------------------------------------------
@@ -766,7 +867,7 @@ harness.run("info.json name and version for portal zip", function()
 end)
 
 harness.run("migration files exist for schema versions", function()
-  for _, ver in ipairs({ "0.1.0", "0.1.5", "0.1.7", "0.1.9", "0.1.15" }) do
+  for _, ver in ipairs({ "0.1.0", "0.1.5", "0.1.7", "0.1.9", "0.1.15", "0.1.20" }) do
     local path = "migrations/" .. ver .. ".lua"
     local f = io.open(path, "r")
     harness.assert_true(f ~= nil, "missing " .. path)

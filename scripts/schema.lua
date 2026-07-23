@@ -12,6 +12,7 @@ local VALID_STATES = {
   restocking = true,
   reengaging = true,
   waiting = true,
+  ["scout-explore"] = true,
 }
 
 local VALID_COMBAT_STYLES = {
@@ -19,6 +20,11 @@ local VALID_COMBAT_STYLES = {
   strafe = true,
   circle = true,
   flank = true,
+}
+
+local VALID_ROLES = {
+  hunter = true,
+  scout = true,
 }
 
 --- Ensure top-level storage tables exist (idempotent).
@@ -65,6 +71,18 @@ function M.migrate_ai_records()
       if ai.combat_style and not VALID_COMBAT_STYLES[ai.combat_style] then
         ai.combat_style = nil
       end
+      if type(ai.role) ~= "string" or not VALID_ROLES[ai.role] then
+        ai.role = "hunter"
+      end
+      if type(ai.waypoints) ~= "table" then
+        ai.waypoints = {}
+      end
+      if ai.focus_pos ~= nil and type(ai.focus_pos) ~= "table" then
+        ai.focus_pos = nil
+      end
+      if ai.scout_algo_cursor ~= nil and type(ai.scout_algo_cursor) ~= "table" then
+        ai.scout_algo_cursor = nil
+      end
       -- Transient combat / path flags should not block upgraded saves.
       ai.keep_player_destination = nil
       ai.path_stuck_since = nil
@@ -81,6 +99,10 @@ function M.migrate_ai_records()
       ai.orbit_angle = nil
       ai.strafe_sign = nil
       ai.flank_sign = nil
+      ai.scout_goal = nil
+      ai.scout_started_tick = nil
+      ai.scout_goal_kind = nil
+      ai.scout_waypoint_run = nil
     end
   end
 
@@ -100,5 +122,6 @@ end
 
 M.VALID_STATES = VALID_STATES
 M.VALID_COMBAT_STYLES = VALID_COMBAT_STYLES
+M.VALID_ROLES = VALID_ROLES
 
 return M

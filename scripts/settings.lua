@@ -25,6 +25,12 @@ local DEFAULTS = {
   avoid_acid = true,
   combat_move_interval = 90,
   combat_pause_ticks = 45,
+  scout_algorithm = "frontier",
+  scout_max_distance = 1024,
+  scout_max_time_ticks = 36000,
+  scout_standoff_distance = 48,
+  scout_chart_radius = 64,
+  scout_auto_resume = true,
 }
 
 --- @return table
@@ -54,6 +60,12 @@ function M.refresh()
     avoid_acid = g["sh-avoid-acid"].value,
     combat_move_interval = g["sh-combat-move-interval"].value,
     combat_pause_ticks = g["sh-combat-pause-ticks"].value,
+    scout_algorithm = g["sh-scout-algorithm"].value,
+    scout_max_distance = g["sh-scout-max-distance"].value,
+    scout_max_time_ticks = g["sh-scout-max-time-ticks"].value,
+    scout_standoff_distance = g["sh-scout-standoff-distance"].value,
+    scout_chart_radius = g["sh-scout-chart-radius"].value,
+    scout_auto_resume = g["sh-scout-auto-resume"].value,
   }
   storage.settings_cache = cache
   return cache

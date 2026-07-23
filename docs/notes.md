@@ -16,6 +16,8 @@ repeatedly (UPS).
 
 States own enter/update/exit. Transitions return a next-state name from update.
 Keeps combat/search/restock logic isolated and extensible for squads later.
+Scout reuses moving/returning/restocking/waiting with `role == "scout"` and adds
+`scout-explore` for goal picking.
 
 ## Enemy cache before scan
 
@@ -187,3 +189,17 @@ Replaced refuse-enable-while-on-patrol with soft-dep handoff in
 on disable restore auto only when prior mode was known (remote table or open
 `on_patrol_switch`). If mode cannot be read, leave manual so already-manual
 schedules are not flipped to auto. Patrols stays an optional `?` dependency.
+
+## Scout role (0.1.20)
+
+Any eligible spidertron can be Mode → Scout (no new vehicle entity). Scout remote
+(`sh-scout-remote`) appends waypoints; vanilla remote sets focus and clears the
+queue. Algorithm is a map setting (`frontier` / `lawnmower` / `spiral`) used only
+when the waypoint queue is empty. Scouts `force.chart` around themselves, keep
+`sh-scout-standoff-distance` from enemies (cache via targeting), never attack, and
+reuse hunter restock/retreat (repair only — scouts do not wait for ammo). Scout
+enable is refused while ammo slots or active-defense equipment are present; if
+armed mid-run, Scout disables itself. Toolbar toggle still enables Off→Hunter only
+and does not convert active Scouts. If a scout zig-zags or loops in place, it is
+dodging enemies at standoff — send Hunters to clear the locals so exploration can
+continue.

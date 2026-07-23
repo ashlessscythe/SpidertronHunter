@@ -2,6 +2,7 @@
 local ai = require("scripts.ai")
 local persistence = require("scripts.persistence")
 local targeting = require("scripts.targeting")
+local scout = require("scripts.scout")
 
 local function print_debug(player_index)
   local dump = ai.debug_dump()
@@ -16,12 +17,14 @@ local function print_debug(player_index)
   for i = 1, #dump.spiders do
     local s = dump.spiders[i]
     lines[#lines + 1] = string.format(
-      "  #%s state=%s valid=%s target=%s wait=%s",
+      "  #%s role=%s state=%s valid=%s target=%s wait=%s wp=%s",
       tostring(s.unit_number),
+      tostring(s.role),
       tostring(s.state),
       tostring(s.valid),
       tostring(s.target),
-      tostring(s.wait_reason)
+      tostring(s.wait_reason),
+      tostring(s.waypoints)
     )
   end
   local text = table.concat(lines, "\n")
@@ -50,6 +53,14 @@ local methods = {
     return ai.is_enabled(spidertron)
   end,
 
+  get_role = function(spidertron)
+    return ai.get_role(spidertron)
+  end,
+
+  set_role = function(spidertron, role)
+    return ai.set_role(spidertron, role, nil)
+  end,
+
   get_ai_data = function(spidertron)
     local data = persistence.get_ai_for_entity(spidertron)
     if not data then
@@ -57,7 +68,10 @@ local methods = {
     end
     return {
       state = data.state,
+      role = data.role,
       home = data.home,
+      focus = data.focus_pos,
+      waypoints = data.waypoints and #data.waypoints or 0,
       unit_number = data.unit_number,
       claim_id = data.claim_id,
       wait_reason = data.wait_reason,
@@ -70,6 +84,49 @@ local methods = {
 
   clear_home = function(spidertron)
     return ai.clear_home(spidertron)
+  end,
+
+  set_scout_focus = function(spidertron, position)
+    if not spidertron or not spidertron.valid then
+      return false
+    end
+    if ai.get_role(spidertron) ~= "scout" then
+      if not ai.enable_scout(spidertron, nil) then
+        return false
+      end
+    end
+    local data = persistence.get_ai_for_entity(spidertron)
+    if not data or not position then
+      return false
+    end
+    scout.set_focus(data, position)
+    return true
+  end,
+
+  add_scout_waypoint = function(spidertron, position)
+    if not spidertron or not spidertron.valid or not position then
+      return false
+    end
+    if ai.get_role(spidertron) ~= "scout" then
+      if not ai.enable_scout(spidertron, nil) then
+        return false
+      end
+    end
+    local data = persistence.get_ai_for_entity(spidertron)
+    if not data then
+      return false
+    end
+    scout.add_waypoint(data, position)
+    return true
+  end,
+
+  clear_scout_waypoints = function(spidertron)
+    local data = persistence.get_ai_for_entity(spidertron)
+    if not data then
+      return false
+    end
+    scout.clear_waypoints(data)
+    return true
   end,
 
   debug = function(player_index)
@@ -86,6 +143,8 @@ local methods = {
       data.path_start_tick = nil
       data.player_goal = nil
       data.wait_reason = nil
+      data.scout_goal = nil
+      data.scout_goal_kind = nil
     end
     storage.path_requests = {}
     storage.path_statuses = {}

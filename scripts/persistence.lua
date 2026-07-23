@@ -25,6 +25,7 @@ function M.create_ai(spidertron)
     entity = spidertron,
     unit_number = unit_number,
     state = "idle",
+    role = "hunter",
     home = {
       surface_index = spidertron.surface_index,
       x = spidertron.position.x,
@@ -41,6 +42,11 @@ function M.create_ai(spidertron)
     pending_goal = nil,
     path_start_tick = nil,
     wait_reason = nil,
+    focus_pos = nil,
+    waypoints = {},
+    scout_started_tick = nil,
+    scout_algo_cursor = nil,
+    scout_goal = nil,
   }
   storage.spiders[unit_number] = ai
   return ai

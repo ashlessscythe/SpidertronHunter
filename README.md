@@ -2,9 +2,9 @@
 
 Autonomous Spidertron AI for **Factorio 2.1**.
 
-Enable Hunter AI on a spidertron and it will search for enemies, path around lakes, kite at range (with optional strafe/circle/flank), retreat when damaged, then return home to restock/repair before hunting again.
+**Hunter** mode searches for enemies, paths around lakes, kites at range, retreats when damaged, then returns home to restock/repair.
 
-No manual patrol routes required.
+**Scout** mode explores and charts fog without engaging — keeps standoff from biters, feeds the shared enemy cache, then hunters can clean up.
 
 ## Gallery
 
@@ -27,15 +27,21 @@ For the Mod Portal description, use absolute `raw.githubusercontent.com` URLs to
 
 1. Unlock spidertrons (and the Hunter toolbar shortcut).
 2. Select one or more spidertrons with the remote (or open a spidertron GUI).
-3. Toggle Hunter AI via:
-   - Toolbar shortcut **Toggle Spidertron Hunter** (highlights when the whole selection is active)
-   - Hotkey `Ctrl+Shift+H`
-   - **Hunter AI** button on the right side of the spidertron GUI
-4. Home is set to the spidertron's position when AI is enabled.
-5. Multi-select toggle: if any selected hunter is off → enable all; if all are on → disable all.
-6. Per-spidertron combat style via the dropdown next to the enable button.
+3. Set **Mode** on the spidertron GUI: **Off** / **Hunter** / **Scout**.
+4. Or toggle Hunter via toolbar **Toggle Spidertron Hunter** / `Ctrl+Shift+H` (enables Off spiders as Hunter; does not convert Scouts).
+5. Home is set to the spidertron's position when AI is enabled.
+6. Per-hunter combat style via the Style dropdown (Hunter mode only).
+
+### Scout controls
+
+1. Set Mode → **Scout**.
+2. **Vanilla spidertron remote** click → set explore **focus** (clears waypoints; runs the map-setting algorithm around that point).
+3. **Scout remote** (toolbar / `Alt+Shift+A`) click → **append waypoint**. Waypoints are visited in order (algorithm ignored until the queue is empty).
+4. Map settings choose the algorithm: `frontier` (nearest fog), `lawnmower`, or `spiral`.
 
 ## Behavior
+
+### Hunter
 
 ```
 Patrol → Search → Move → Attack (kite) → linger / retreat → Return home → Restock → (optional re-engage) → Patrol
@@ -48,8 +54,17 @@ Patrol → Search → Move → Attack (kite) → linger / retreat → Return hom
 - **Re-engage:** optional; after retreat + restock, return to the retreat origin and hunt again (default off)
 - **Linger:** after a fight clears, keep scanning locally briefly (default 15s) before returning home
 - **Restock:** waits on logistics/repairs with a hard timeout (never stuck forever)
-- **Persistence:** Hunter AI stays enabled through combat, return home, and restock — only an explicit disable turns it off
-- **Debug:** `sh-debug-mode` shows short flying text over the spidertron for major state changes
+
+### Scout
+
+```
+Explore → Move (lake-aware) → chart / standoff → (limits or done) → Return home → Restock → resume or wait
+```
+
+- Never enters combat; guns stay passive. Requires empty ammo (and no personal laser defense); enabling Scout is refused if armed, and Scout aborts if ammo is loaded mid-run.
+- Charts fog each think tick; records nearby enemies into the shared cache
+- Caps: max distance from focus/home, max run time, standoff distance
+- If a scout keeps zig-zagging or looping in one area, it is standoff-dodging locals — send a Hunter squad to clear them so the scout can move on
 
 ## Settings
 
@@ -65,6 +80,8 @@ All important options are **runtime-global** (Map settings → Mod settings):
 | Re-engage after retreat | Return to retreat coordinates after restock (default off) |
 | Combat range / style / acid avoid | Kiting behavior |
 | Restock / repair / max wait | Home logistics |
+| Scout algorithm / max distance / max time | Explore pattern and run caps |
+| Scout standoff / chart radius / auto-resume | Safety distance, fog reveal, resume after waypoints/restock |
 
 ## Remote interface
 
@@ -74,6 +91,11 @@ All important options are **runtime-global** (Map settings → Mod settings):
 /c remote.call("spidertron_hunter", "scan")
 /c remote.call("spidertron_hunter", "enable", game.player.selected)
 /c remote.call("spidertron_hunter", "disable", game.player.selected)
+/c remote.call("spidertron_hunter", "set_role", game.player.selected, "scout")
+/c remote.call("spidertron_hunter", "get_role", game.player.selected)
+/c remote.call("spidertron_hunter", "set_scout_focus", game.player.selected, {x=0, y=0})
+/c remote.call("spidertron_hunter", "add_scout_waypoint", game.player.selected, {x=100, y=0})
+/c remote.call("spidertron_hunter", "clear_scout_waypoints", game.player.selected)
 ```
 
 Alias: `SpidertronHunter` (same methods).
@@ -118,8 +140,3 @@ Symlink or copy this folder into your Factorio `mods` directory as `SpidertronHu
 MIT — see [LICENSE](LICENSE).
 
 Third-party attributions for adapted code (where applicable) are listed in [NOTICE](NOTICE).
-
-## Notes
-
-- Design and UPS decisions: [docs/notes.md](docs/notes.md)
-- User-facing history: [CHANGELOG.md](CHANGELOG.md)

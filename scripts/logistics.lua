@@ -64,7 +64,7 @@ function M.update_restock(ai)
     end
   end
 
-  if cfg.restock_enabled then
+  if cfg.restock_enabled and ai.role ~= "scout" then
     if M.in_logistic_network(spidertron) then
       -- Wait a settle period so bots can deliver; if ammo still empty keep waiting until timeout.
       if elapsed < 180 then

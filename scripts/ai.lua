@@ -11,12 +11,38 @@ local combat = require("scripts.combat")
 local shortcut = require("scripts.shortcut")
 local pathfinder = require("scripts.pathfinder")
 local patrols = require("scripts.patrols")
+local scout = require("scripts.scout")
 
 local M = {}
 
 local COMBAT_REACQUIRE_RADIUS = 64
 local ARRIVAL_RADIUS = 8
 local PLAYER_CLICK_ENEMY_RADIUS = 8
+
+--- @param ai table?
+--- @return boolean
+local function is_scout(ai)
+  return ai ~= nil and ai.role == "scout"
+end
+
+--- Abort Scout if ammo / active-defense was loaded mid-run.
+--- @param ai table
+--- @return boolean aborted
+local function abort_scout_if_armed(ai)
+  local spidertron = ai.entity
+  if not util.is_valid_spidertron(spidertron) or not scout.has_weapons(spidertron) then
+    return false
+  end
+  M.disable(spidertron, nil)
+  if spidertron.valid then
+    for _, player in pairs(game.connected_players) do
+      if player.valid and player.surface_index == spidertron.surface_index then
+        util.flying_text(player, { "sh.scout-aborted-weapons" }, spidertron.position)
+      end
+    end
+  end
+  return true
+end
 
 --- Decide whether to return home or keep hunting after an area goes quiet.
 --- @param ai table
@@ -207,6 +233,12 @@ function M.enable(spidertron, player)
   release_claim(ai)
   cancel_ai_pathing(ai)
   ai.retreat_origin = nil
+  ai.role = "hunter"
+  scout.clear_waypoints(ai)
+  ai.focus_pos = nil
+  ai.scout_goal = nil
+  ai.scout_algo_cursor = nil
+  ai.scout_started_tick = nil
   -- Do not clear player destinations on enable — only stop AI-owned movement.
   spidertron.follow_target = nil
 
@@ -230,6 +262,114 @@ function M.enable(spidertron, player)
   end
   shortcut.sync_all()
   return true
+end
+
+--- Enable Scout AI (explore / chart, never engage).
+--- @param spidertron LuaEntity
+--- @param player LuaPlayer?
+--- @return boolean success
+function M.enable_scout(spidertron, player)
+  if not util.is_valid_spidertron(spidertron) then
+    if player then
+      util.flying_text(player, { "sh.denied-denylist" }, spidertron and spidertron.position or nil)
+    end
+    return false
+  end
+
+  if scout.has_weapons(spidertron) then
+    if player then
+      util.flying_text(player, { "sh.scout-denied-weapons" }, spidertron.position)
+    end
+    return false
+  end
+
+  local ai = persistence.get_ai_for_entity(spidertron)
+  if not ai then
+    ai = persistence.create_ai(spidertron)
+  else
+    ai.entity = spidertron
+  end
+
+  ai.patrols_was_auto = patrols.capture_was_auto(spidertron)
+  if ai.patrols_was_auto ~= nil then
+    patrols.set_manual(spidertron)
+  end
+
+  local cfg = settings_mod.get()
+  local sticky = cfg.sticky_home_on_first_enable
+  if not sticky or not ai.home_sticky then
+    ai.home = {
+      surface_index = spidertron.surface_index,
+      x = spidertron.position.x,
+      y = spidertron.position.y,
+    }
+    if sticky then
+      ai.home_sticky = true
+    end
+  end
+
+  release_claim(ai)
+  cancel_ai_pathing(ai)
+  ai.retreat_origin = nil
+  ai.role = "scout"
+  ai.focus_pos = ai.focus_pos or {
+    x = spidertron.position.x,
+    y = spidertron.position.y,
+  }
+  scout.reset_run(ai)
+  spidertron.follow_target = nil
+
+  local params = spidertron.vehicle_automatic_targeting_parameters
+  if params then
+    spidertron.vehicle_automatic_targeting_parameters = {
+      auto_target_without_gunner = false,
+      auto_target_with_gunner = params.auto_target_with_gunner,
+    }
+  end
+
+  States.transition(ai, States.SCOUT_EXPLORE)
+
+  script.raise_event("on_spidertron_scout_enabled", {
+    spidertron = spidertron,
+    player_index = player and player.index or nil,
+  })
+
+  if player then
+    util.flying_text(player, { "sh.scout-enabled" }, spidertron.position)
+  end
+  shortcut.sync_all()
+  return true
+end
+
+--- @param spidertron LuaEntity
+--- @return string "off"|"hunter"|"scout"
+function M.get_role(spidertron)
+  local ai = persistence.get_ai_for_entity(spidertron)
+  if not ai or ai.state == States.IDLE then
+    return "off"
+  end
+  if ai.role == "scout" then
+    return "scout"
+  end
+  return "hunter"
+end
+
+--- @param spidertron LuaEntity
+--- @param role string
+--- @param player LuaPlayer?
+--- @return boolean
+function M.set_role(spidertron, role, player)
+  if role == "off" then
+    M.disable(spidertron, player)
+    return true
+  end
+  if role == "scout" then
+    return M.enable_scout(spidertron, player)
+  end
+  if role == "hunter" then
+    return M.enable(spidertron, player)
+  end
+  return false
 end
 
 --- Pin home to a position (defaults to the spidertron's current position).
@@ -278,21 +418,35 @@ function M.disable(spidertron, player)
   if not ai then
     return
   end
+  local was_scout = is_scout(ai)
   release_claim(ai)
   cancel_ai_pathing(ai)
   ai.retreat_origin = nil
+  scout.clear_waypoints(ai)
+  ai.focus_pos = nil
+  ai.scout_goal = nil
+  ai.scout_algo_cursor = nil
+  ai.scout_started_tick = nil
   if spidertron and spidertron.valid then
     -- Leave any current player destination alone; only drop follow.
     spidertron.follow_target = nil
     patrols.restore(spidertron, ai.patrols_was_auto)
   end
   ai.patrols_was_auto = nil
+  ai.role = "hunter"
   States.transition(ai, States.IDLE)
 
-  script.raise_event("on_spidertron_hunter_disabled", {
-    spidertron = spidertron,
-    player_index = player and player.index or nil,
-  })
+  if was_scout then
+    script.raise_event("on_spidertron_scout_disabled", {
+      spidertron = spidertron,
+      player_index = player and player.index or nil,
+    })
+  else
+    script.raise_event("on_spidertron_hunter_disabled", {
+      spidertron = spidertron,
+      player_index = player and player.index or nil,
+    })
+  end
 
   if player and spidertron and spidertron.valid then
     util.flying_text(player, { "sh.disabled" }, spidertron.position)
@@ -339,8 +493,8 @@ local function collect_targets(player)
   return targets
 end
 
---- Unify selection: if every target is enabled → disable all; otherwise enable all.
---- Mixed selections become fully enabled so the toolbar highlight matches the group.
+--- Unify selection: if every target is enabled → disable all; otherwise enable
+--- Off spiders as Hunter. Does not convert active Scouts to Hunter (use GUI Mode).
 --- @param player LuaPlayer
 function M.toggle_for_player(player)
   local targets = collect_targets(player)
@@ -363,7 +517,7 @@ function M.toggle_for_player(player)
     end
   else
     for i = 1, #targets do
-      if not M.is_enabled(targets[i]) then
+      if M.get_role(targets[i]) == "off" then
         M.enable(targets[i], player)
       end
     end
@@ -411,6 +565,9 @@ States.register(States.PATROL, {
     ai.next_think_tick = game.tick + 30
   end,
   update = function(ai)
+    if is_scout(ai) then
+      return States.SCOUT_EXPLORE
+    end
     local spidertron = ai.entity
     if not util.is_valid_spidertron(spidertron) then
       return
@@ -437,6 +594,9 @@ States.register(States.PATROL, {
 
 States.register(States.SEARCH, {
   update = function(ai)
+    if is_scout(ai) then
+      return States.SCOUT_EXPLORE
+    end
     local spidertron = ai.entity
     if not util.is_valid_spidertron(spidertron) then
       return
@@ -468,6 +628,13 @@ States.register(States.MOVING, {
     if not util.is_valid_spidertron(spidertron) then
       return
     end
+    if is_scout(ai) then
+      local goal = ai.scout_goal
+      if goal then
+        movement.go_to(spidertron, goal, true)
+      end
+      return
+    end
     -- Player already issued the destination (remote click on enemy).
     if ai.keep_player_destination then
       ai.keep_player_destination = nil
@@ -491,6 +658,48 @@ States.register(States.MOVING, {
     if retreat then
       return retreat
     end
+
+    if is_scout(ai) then
+      if abort_scout_if_armed(ai) then
+        return
+      end
+      local cfg = settings_mod.get()
+      scout.chart_around(spidertron, cfg.scout_chart_radius)
+      local threat = scout.find_standoff_enemy(spidertron, cfg.scout_standoff_distance)
+      if threat then
+        local detour = scout.safe_detour(spidertron.position, threat.position, cfg.scout_standoff_distance)
+        ai.scout_goal = detour
+        ai.scout_goal_kind = "detour"
+        movement.go_to(spidertron, detour, true)
+        return
+      end
+      if scout.limits_exceeded(ai, cfg) then
+        ai.scout_goal = nil
+        return States.RETURNING
+      end
+      local goal = ai.scout_goal
+      if not goal then
+        return States.SCOUT_EXPLORE
+      end
+      if movement.is_near(spidertron, goal, scout.ARRIVAL_RADIUS) then
+        if ai.scout_goal_kind == "waypoint" then
+          scout.pop_waypoint(ai)
+        end
+        ai.scout_goal = nil
+        ai.scout_goal_kind = nil
+        movement.clear(spidertron)
+        return States.SCOUT_EXPLORE
+      end
+      if not spidertron.autopilot_destination and not spidertron.follow_target then
+        if game.tick - ai.state_entered_tick > 120 then
+          movement.go_to(spidertron, goal, true)
+        end
+      else
+        pathfinder.repath_if_stuck(spidertron, goal)
+      end
+      return
+    end
+
     local target = ai.target_entity
     if not target or not target.valid then
       release_claim(ai)
@@ -515,6 +724,9 @@ States.register(States.MOVING, {
 
 States.register(States.ATTACKING, {
   enter = function(ai)
+    if is_scout(ai) then
+      return
+    end
     ai.post_combat_since = nil
     ai.combat_last_move_tick = 0
     local spidertron = ai.entity
@@ -527,6 +739,10 @@ States.register(States.ATTACKING, {
     end
   end,
   update = function(ai)
+    if is_scout(ai) then
+      release_claim(ai)
+      return States.SCOUT_EXPLORE
+    end
     local spidertron = ai.entity
     if not util.is_valid_spidertron(spidertron) then
       return
@@ -590,6 +806,14 @@ States.register(States.RETURNING, {
       if cfg.restock_enabled or cfg.repair_enabled or was_retreating then
         return States.RESTOCKING
       end
+      if is_scout(ai) then
+        if cfg.scout_auto_resume then
+          scout.reset_run(ai)
+          return States.SCOUT_EXPLORE
+        end
+        ai.wait_reason = "scout-idle"
+        return States.WAITING
+      end
       return States.PATROL
     end
     if not spidertron.autopilot_destination and not spidertron.follow_target then
@@ -612,6 +836,15 @@ States.register(States.RESTOCKING, {
   update = function(ai)
     if logistics.update_restock(ai) then
       local cfg = settings_mod.get()
+      if is_scout(ai) then
+        ai.retreat_origin = nil
+        if cfg.scout_auto_resume then
+          scout.reset_run(ai)
+          return States.SCOUT_EXPLORE
+        end
+        ai.wait_reason = "scout-idle"
+        return States.WAITING
+      end
       if cfg.reengage_after_retreat and ai.retreat_origin then
         return States.REENGAGING
       end
@@ -672,6 +905,20 @@ States.register(States.WAITING, {
       return
     end
 
+    if is_scout(ai) then
+      if ai.wait_reason == "scout-idle" then
+        -- Stay parked until a remote order arrives.
+        return
+      end
+      local arrived = not spidertron.autopilot_destination and not spidertron.follow_target
+      if arrived or game.tick - ai.state_entered_tick >= settings_mod.get().max_idle_time then
+        ai.wait_reason = nil
+        ai.player_goal = nil
+        return States.SCOUT_EXPLORE
+      end
+      return
+    end
+
     local arrived = not spidertron.autopilot_destination and not spidertron.follow_target
     if ai.player_goal and not arrived then
       -- Still traveling on the player order.
@@ -695,6 +942,77 @@ States.register(States.WAITING, {
   end,
 })
 
+States.register(States.SCOUT_EXPLORE, {
+  enter = function(ai)
+    release_claim(ai)
+    ai.next_think_tick = game.tick + 15
+    if not ai.scout_started_tick then
+      ai.scout_started_tick = game.tick
+    end
+  end,
+  update = function(ai)
+    local spidertron = ai.entity
+    if not util.is_valid_spidertron(spidertron) then
+      return
+    end
+    if not is_scout(ai) then
+      return States.PATROL
+    end
+    if abort_scout_if_armed(ai) then
+      return
+    end
+
+    local cfg = settings_mod.get()
+    scout.chart_around(spidertron, cfg.scout_chart_radius)
+
+    local retreat = check_tactical_retreat(ai)
+    if retreat then
+      return retreat
+    end
+
+    local threat = scout.find_standoff_enemy(spidertron, cfg.scout_standoff_distance)
+    if threat then
+      local detour = scout.safe_detour(spidertron.position, threat.position, cfg.scout_standoff_distance)
+      ai.scout_goal = detour
+      ai.scout_goal_kind = "detour"
+      return States.MOVING
+    end
+
+    if scout.limits_exceeded(ai, cfg) then
+      ai.scout_goal = nil
+      return States.RETURNING
+    end
+
+    if game.tick < (ai.next_think_tick or 0) then
+      return
+    end
+    ai.next_think_tick = game.tick + cfg.scan_interval
+
+    if spidertron.surface_index ~= ai.home.surface_index then
+      ai.wait_reason = "wrong-surface"
+      return States.WAITING
+    end
+
+    -- Waypoints finished and auto-resume off → home / idle.
+    if not scout.has_waypoints(ai) and ai.scout_waypoint_run and not cfg.scout_auto_resume then
+      ai.scout_waypoint_run = nil
+      return States.RETURNING
+    end
+
+    local goal, kind = scout.pick_goal(ai, cfg)
+    if not goal then
+      -- Nothing left to explore (e.g. frontier fully charted).
+      return States.RETURNING
+    end
+    if kind == "waypoint" then
+      ai.scout_waypoint_run = true
+    end
+    ai.scout_goal = goal
+    ai.scout_goal_kind = kind
+    return States.MOVING
+  end,
+})
+
 --- Called when spider finishes an autopilot leg.
 --- @param spidertron LuaEntity
 function M.on_spider_command_completed(spidertron)
@@ -707,21 +1025,55 @@ function M.on_spider_command_completed(spidertron)
   elseif ai.state == States.RETURNING or ai.state == States.REENGAGING then
     States.update(ai)
   elseif ai.state == States.WAITING and ai.wait_reason == "player-remote" then
-    -- Waypoint finished; if queue empty, resume hunt.
+    -- Waypoint finished; if queue empty, resume hunt / scout.
     if not spidertron.autopilot_destination then
       ai.wait_reason = nil
       ai.player_goal = nil
-      States.transition(ai, States.SEARCH)
+      if is_scout(ai) then
+        States.transition(ai, States.SCOUT_EXPLORE)
+      else
+        States.transition(ai, States.SEARCH)
+      end
     end
   end
 end
 
---- Player remote command. Preserve the issued destination; do not fight it.
+--- Player remote command. Scout remotes append waypoints; vanilla remote sets focus.
 --- @param spidertron LuaEntity
 --- @param position MapPosition?
-function M.on_player_remote(spidertron, position)
+--- @param player LuaPlayer?
+function M.on_player_remote(spidertron, position, player)
   local ai = persistence.get_ai_for_entity(spidertron)
   if not ai or ai.state == States.IDLE then
+    return
+  end
+
+  if is_scout(ai) then
+    cancel_ai_pathing(ai)
+    release_claim(ai)
+    if not position then
+      return
+    end
+    if scout.holding_scout_remote(player) then
+      scout.add_waypoint(ai, position)
+      ai.wait_reason = nil
+      if player then
+        util.flying_text(player, { "sh.scout-waypoint-added" }, spidertron.position)
+      end
+      -- Start toward this waypoint on the next explore pick.
+      if ai.state ~= States.MOVING then
+        States.transition(ai, States.SCOUT_EXPLORE)
+      end
+      return
+    end
+
+    -- Vanilla remote (or other): set explore focus.
+    scout.set_focus(ai, position)
+    ai.wait_reason = nil
+    if player then
+      util.flying_text(player, { "sh.scout-focus-set" }, spidertron.position)
+    end
+    States.transition(ai, States.SCOUT_EXPLORE)
     return
   end
 
@@ -749,13 +1101,13 @@ function M.on_player_remote(spidertron, position)
   States.transition(ai, States.WAITING)
 end
 
---- Force an immediate scan for one spider (or all).
+--- Force an immediate scan for one spider (or all). Scouts are skipped.
 --- @param spidertron LuaEntity?
 --- @return integer found_count
 function M.force_scan(spidertron)
   local count = 0
   local function scan_one(ai)
-    if not ai or ai.state == States.IDLE then
+    if not ai or ai.state == States.IDLE or is_scout(ai) then
       return
     end
     local enemy = scanner.scan_for_enemy(ai)
@@ -784,8 +1136,11 @@ function M.debug_dump()
     spiders[#spiders + 1] = {
       unit_number = unit_number,
       state = ai.state,
+      role = ai.role,
       valid = entity and entity.valid or false,
       home = ai.home,
+      focus = ai.focus_pos,
+      waypoints = ai.waypoints and #ai.waypoints or 0,
       retreat_origin = ai.retreat_origin,
       target = ai.target_entity and ai.target_entity.valid and ai.target_entity.name or nil,
       wait_reason = ai.wait_reason,

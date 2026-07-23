@@ -2,6 +2,15 @@
 
 All notable changes to Spidertron Hunter are documented here.
 
+## [0.1.20] — 2026-07-23
+
+### Added
+
+- Scout role on any eligible spidertron (GUI Mode: Off / Hunter / Scout). Scouts explore and chart fog, keep standoff from biters, record nests into the shared enemy cache, and never engage. Scout requires empty ammo (and no active-defense equipment); refused at enable and aborted if armed mid-run.
+- Scout remote (`sh-scout-remote`, Alt+Shift+A / toolbar): append explore waypoints. Vanilla spidertron remote sets scout focus (clears waypoints).
+- Scout map settings: algorithm (`frontier` / `lawnmower` / `spiral`), max distance, max time, standoff, chart radius, auto-resume.
+- Remote interface: `get_role`, `set_role`, `set_scout_focus`, `add_scout_waypoint`, `clear_scout_waypoints`.
+
 ## [0.1.17] — 2026-07-23
 
 ### Added

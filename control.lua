@@ -83,7 +83,7 @@ script.on_event(defines.events.on_player_used_spidertron_remote, function(event)
   local position = event.position
   for _, spidertron in pairs(player.spidertron_remote_selection) do
     if spidertron and spidertron.valid then
-      ai.on_player_remote(spidertron, position)
+      ai.on_player_remote(spidertron, position, player)
     end
   end
 end)

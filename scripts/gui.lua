@@ -1,4 +1,4 @@
---- Relative GUI toggle + combat style on spider-vehicle (right side).
+--- Relative GUI mode + combat style on spider-vehicle (right side).
 local ai = require("scripts.ai")
 local util = require("scripts.util")
 local persistence = require("scripts.persistence")
@@ -6,12 +6,22 @@ local persistence = require("scripts.persistence")
 local M = {}
 
 local FRAME_NAME = "sh-relative-frame"
-local BUTTON_NAME = "sh-toggle-button"
+local MODE_DROPDOWN = "sh-mode-dropdown"
 local SET_HOME_BUTTON = "sh-set-home-button"
 local CLEAR_HOME_BUTTON = "sh-clear-home-button"
 local STYLE_DROPDOWN = "sh-combat-style-dropdown"
 
+local MODE_ORDER = { "off", "hunter", "scout" }
 local STYLE_ORDER = { "hold", "strafe", "circle", "flank" }
+
+local function mode_index(role)
+  for i = 1, #MODE_ORDER do
+    if MODE_ORDER[i] == role then
+      return i
+    end
+  end
+  return 1
+end
 
 local function style_index(style)
   for i = 1, #STYLE_ORDER do
@@ -41,7 +51,7 @@ local function build_gui(player, spidertron)
     existing.destroy()
   end
 
-  local enabled = ai.is_enabled(spidertron)
+  local role = ai.get_role(spidertron)
   local frame = relative.add({
     type = "frame",
     name = FRAME_NAME,
@@ -60,11 +70,20 @@ local function build_gui(player, spidertron)
   })
 
   frame.add({
-    type = "button",
-    name = BUTTON_NAME,
-    caption = enabled and { "sh.enabled" } or { "sh.toggle-button" },
-    tooltip = { "sh.toggle-tooltip" },
-    style = "button",
+    type = "label",
+    caption = { "sh.mode-label" },
+  })
+
+  local mode_items = {}
+  for i = 1, #MODE_ORDER do
+    mode_items[i] = { "sh.mode-" .. MODE_ORDER[i] }
+  end
+  frame.add({
+    type = "drop-down",
+    name = MODE_DROPDOWN,
+    items = mode_items,
+    selected_index = mode_index(role),
+    tooltip = { "sh.mode-tooltip" },
     tags = { sh_unit_number = spidertron.unit_number },
   })
 
@@ -86,32 +105,34 @@ local function build_gui(player, spidertron)
     tags = { sh_unit_number = spidertron.unit_number },
   })
 
-  frame.add({
-    type = "label",
-    caption = { "sh.combat-style-label" },
-  })
+  if role == "hunter" then
+    frame.add({
+      type = "label",
+      caption = { "sh.combat-style-label" },
+    })
 
-  local items = {}
-  for i = 1, #STYLE_ORDER do
-    items[i] = { "sh.combat-style-" .. STYLE_ORDER[i] }
+    local items = {}
+    for i = 1, #STYLE_ORDER do
+      items[i] = { "sh.combat-style-" .. STYLE_ORDER[i] }
+    end
+    local current = ai.get_combat_style(spidertron)
+    frame.add({
+      type = "drop-down",
+      name = STYLE_DROPDOWN,
+      items = items,
+      selected_index = style_index(current),
+      tooltip = { "sh.combat-style-tooltip" },
+      tags = { sh_unit_number = spidertron.unit_number },
+    })
   end
-  local current = ai.get_combat_style(spidertron)
-  frame.add({
-    type = "drop-down",
-    name = STYLE_DROPDOWN,
-    items = items,
-    selected_index = style_index(current),
-    tooltip = { "sh.combat-style-tooltip" },
-    tags = { sh_unit_number = spidertron.unit_number },
-  })
 
   local ai_data = persistence.get_ai_for_entity(spidertron)
-  if enabled and ai_data and ai_data.state then
+  if role ~= "off" and ai_data and ai_data.state then
     frame.add({
       type = "label",
       caption = { "sh.state-" .. ai_data.state },
     })
-  elseif not enabled then
+  elseif role == "off" then
     frame.add({
       type = "label",
       caption = { "sh.disabled" },
@@ -167,7 +188,7 @@ function M.on_gui_click(event)
     return
   end
   local name = element.name
-  if name ~= BUTTON_NAME and name ~= SET_HOME_BUTTON and name ~= CLEAR_HOME_BUTTON then
+  if name ~= SET_HOME_BUTTON and name ~= CLEAR_HOME_BUTTON then
     return
   end
   local player = game.get_player(event.player_index)
@@ -180,9 +201,7 @@ function M.on_gui_click(event)
     return
   end
 
-  if name == BUTTON_NAME then
-    ai.toggle(spidertron, player)
-  elseif name == SET_HOME_BUTTON then
+  if name == SET_HOME_BUTTON then
     if ai.set_home(spidertron) then
       util.flying_text(player, { "sh.home-set" }, spidertron.position)
     end
@@ -200,7 +219,7 @@ end
 --- @param event EventData.on_gui_selection_state_changed
 function M.on_gui_selection_state_changed(event)
   local element = event.element
-  if not element or not element.valid or element.name ~= STYLE_DROPDOWN then
+  if not element or not element.valid then
     return
   end
   local player = game.get_player(event.player_index)
@@ -211,17 +230,31 @@ function M.on_gui_selection_state_changed(event)
   if not spidertron then
     return
   end
+
+  if element.name == MODE_DROPDOWN then
+    local role = MODE_ORDER[element.selected_index]
+    if role then
+      ai.set_role(spidertron, role, player)
+    end
+    if util.is_valid_spidertron(spidertron) then
+      build_gui(player, spidertron)
+    end
+    return
+  end
+
+  if element.name ~= STYLE_DROPDOWN then
+    return
+  end
   local idx = element.selected_index
   local style = STYLE_ORDER[idx]
   if not style then
     return
   end
   ai.set_combat_style(spidertron, style)
-  -- Also update global default so new hunters match the last GUI choice.
-  -- Per-spider override is authoritative for this entity via ai.combat_style.
   util.debug_log("style → " .. style, spidertron)
 end
 
 M.STYLE_ORDER = STYLE_ORDER
+M.MODE_ORDER = MODE_ORDER
 
 return M
