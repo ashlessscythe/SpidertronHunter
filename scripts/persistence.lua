@@ -30,6 +30,7 @@ function M.create_ai(spidertron)
       x = spidertron.position.x,
       y = spidertron.position.y,
     },
+    home_sticky = false,
     target_entity = nil,
     target_pos = nil,
     claim_id = nil,

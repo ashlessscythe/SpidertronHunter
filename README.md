@@ -60,6 +60,7 @@ All important options are **runtime-global** (Map settings → Mod settings):
 | Search radius / max pursuit | How far to look / how far from home to chase |
 | Scan interval / budget | UPS-facing scan throttles |
 | Return home + post-combat linger | Clear an area before heading home (default linger 15s) |
+| Sticky home on first enable | Keep home across disable/enable until cleared (default off) |
 | Tactical retreat health % + shields | Bail out before dying |
 | Re-engage after retreat | Return to retreat coordinates after restock (default off) |
 | Combat range / style / acid avoid | Kiting behavior |

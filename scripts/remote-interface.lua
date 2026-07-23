@@ -2,7 +2,6 @@
 local ai = require("scripts.ai")
 local persistence = require("scripts.persistence")
 local targeting = require("scripts.targeting")
-local util = require("scripts.util")
 
 local function print_debug(player_index)
   local dump = ai.debug_dump()
@@ -66,19 +65,11 @@ local methods = {
   end,
 
   set_home = function(spidertron, position)
-    if not util.is_valid_spidertron(spidertron) then
-      return false
-    end
-    local data = persistence.get_ai_for_entity(spidertron)
-    if not data then
-      data = persistence.create_ai(spidertron)
-    end
-    data.home = {
-      surface_index = spidertron.surface_index,
-      x = position.x,
-      y = position.y,
-    }
-    return true
+    return ai.set_home(spidertron, position)
+  end,
+
+  clear_home = function(spidertron)
+    return ai.clear_home(spidertron)
   end,
 
   debug = function(player_index)

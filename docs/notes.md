@@ -84,7 +84,16 @@ Fix:
 ## Remote + shortcut
 
 Interfaces: `SpidertronHunter` and alias `spidertron_hunter` with
-enable/disable/debug/reset/scan. Toolbar shortcut `sh-toggle-autonomy` (spidertron tech).
+enable/disable/debug/reset/scan/set_home/clear_home. Toolbar shortcut
+`sh-toggle-autonomy` (spidertron tech).
+
+## Sticky home (2026-07-23)
+
+`sh-sticky-home-on-first-enable` (default off) keeps `ai.home` across
+disable/enable once pinned (`ai.home_sticky`). First enable with sticky on
+captures and pins; Clear home unpins; Set home (GUI / remote) writes current
+(or given) position and pins. With the setting off, enable still refreshes home
+every time (backwards compatible).
 
 ## Pursuit vs home (2026-07-21)
 

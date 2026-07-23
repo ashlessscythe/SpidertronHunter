@@ -192,11 +192,18 @@ function M.enable(spidertron, player)
     patrols.set_manual(spidertron)
   end
 
-  ai.home = {
-    surface_index = spidertron.surface_index,
-    x = spidertron.position.x,
-    y = spidertron.position.y,
-  }
+  local cfg = settings_mod.get()
+  local sticky = cfg.sticky_home_on_first_enable
+  if not sticky or not ai.home_sticky then
+    ai.home = {
+      surface_index = spidertron.surface_index,
+      x = spidertron.position.x,
+      y = spidertron.position.y,
+    }
+    if sticky then
+      ai.home_sticky = true
+    end
+  end
   release_claim(ai)
   cancel_ai_pathing(ai)
   ai.retreat_origin = nil
@@ -222,6 +229,45 @@ function M.enable(spidertron, player)
     util.flying_text(player, { "sh.enabled" }, spidertron.position)
   end
   shortcut.sync_all()
+  return true
+end
+
+--- Pin home to a position (defaults to the spidertron's current position).
+--- @param spidertron LuaEntity
+--- @param position MapPosition?
+--- @return boolean
+function M.set_home(spidertron, position)
+  if not util.is_valid_spidertron(spidertron) then
+    return false
+  end
+  local ai = persistence.get_ai_for_entity(spidertron)
+  if not ai then
+    ai = persistence.create_ai(spidertron)
+  else
+    ai.entity = spidertron
+  end
+  local pos = position or spidertron.position
+  ai.home = {
+    surface_index = spidertron.surface_index,
+    x = pos.x,
+    y = pos.y,
+  }
+  ai.home_sticky = true
+  return true
+end
+
+--- Unpin sticky home so the next enable (with sticky setting on) re-captures.
+--- @param spidertron LuaEntity
+--- @return boolean
+function M.clear_home(spidertron)
+  if not util.is_valid_spidertron(spidertron) then
+    return false
+  end
+  local ai = persistence.get_ai_for_entity(spidertron)
+  if not ai then
+    return false
+  end
+  ai.home_sticky = false
   return true
 end
 

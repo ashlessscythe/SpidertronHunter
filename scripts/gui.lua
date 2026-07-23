@@ -7,6 +7,8 @@ local M = {}
 
 local FRAME_NAME = "sh-relative-frame"
 local BUTTON_NAME = "sh-toggle-button"
+local SET_HOME_BUTTON = "sh-set-home-button"
+local CLEAR_HOME_BUTTON = "sh-clear-home-button"
 local STYLE_DROPDOWN = "sh-combat-style-dropdown"
 
 local STYLE_ORDER = { "hold", "strafe", "circle", "flank" }
@@ -62,6 +64,24 @@ local function build_gui(player, spidertron)
     name = BUTTON_NAME,
     caption = enabled and { "sh.enabled" } or { "sh.toggle-button" },
     tooltip = { "sh.toggle-tooltip" },
+    style = "button",
+    tags = { sh_unit_number = spidertron.unit_number },
+  })
+
+  frame.add({
+    type = "button",
+    name = SET_HOME_BUTTON,
+    caption = { "sh.set-home-button" },
+    tooltip = { "sh.set-home-tooltip" },
+    style = "button",
+    tags = { sh_unit_number = spidertron.unit_number },
+  })
+
+  frame.add({
+    type = "button",
+    name = CLEAR_HOME_BUTTON,
+    caption = { "sh.clear-home-button" },
+    tooltip = { "sh.clear-home-tooltip" },
     style = "button",
     tags = { sh_unit_number = spidertron.unit_number },
   })
@@ -143,7 +163,11 @@ end
 --- @param event EventData.on_gui_click
 function M.on_gui_click(event)
   local element = event.element
-  if not element or not element.valid or element.name ~= BUTTON_NAME then
+  if not element or not element.valid then
+    return
+  end
+  local name = element.name
+  if name ~= BUTTON_NAME and name ~= SET_HOME_BUTTON and name ~= CLEAR_HOME_BUTTON then
     return
   end
   local player = game.get_player(event.player_index)
@@ -156,7 +180,18 @@ function M.on_gui_click(event)
     return
   end
 
-  ai.toggle(spidertron, player)
+  if name == BUTTON_NAME then
+    ai.toggle(spidertron, player)
+  elseif name == SET_HOME_BUTTON then
+    if ai.set_home(spidertron) then
+      util.flying_text(player, { "sh.home-set" }, spidertron.position)
+    end
+  elseif name == CLEAR_HOME_BUTTON then
+    if ai.clear_home(spidertron) then
+      util.flying_text(player, { "sh.home-cleared" }, spidertron.position)
+    end
+  end
+
   if util.is_valid_spidertron(spidertron) then
     build_gui(player, spidertron)
   end

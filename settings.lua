@@ -43,6 +43,13 @@ data:extend({
     order = "b-a",
   },
   {
+    type = "bool-setting",
+    name = "sh-sticky-home-on-first-enable",
+    setting_type = "runtime-global",
+    default_value = false,
+    order = "b-a1",
+  },
+  {
     type = "int-setting",
     name = "sh-post-combat-linger-ticks",
     setting_type = "runtime-global",

@@ -2,6 +2,16 @@
 
 All notable changes to Spidertron Hunter are documented here.
 
+## [0.1.17] — 2026-07-23
+
+### Added
+
+- Optional sticky home (`sh-sticky-home-on-first-enable`, default off): when enabled, home is set on first enable and kept across disable/enable until Clear home. Per-spider Set home / Clear home buttons on the spidertron GUI; remote `set_home` pins and `clear_home` unpins.
+
+### Changed
+
+- Targets Factorio 2.1.
+
 ## [0.1.16] — 2026-07-23
 
 ### Changed

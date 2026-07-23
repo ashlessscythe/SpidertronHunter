@@ -128,6 +128,7 @@ harness.run("settings DEFAULTS cover combat + retreat", function()
   harness.assert_eq(d.retreat_health_percent, 25)
   harness.assert_true(d.retreat_include_shields)
   harness.assert_false(d.reengage_after_retreat)
+  harness.assert_false(d.sticky_home_on_first_enable)
   harness.assert_eq(d.scan_interval, 60)
   harness.assert_eq(d.spiders_per_think, 8)
 end)
@@ -472,15 +473,94 @@ harness.run("schema.migrate_ai_records sanitizes bad state and claims", function
   harness.assert_eq(storage.spiders[10].state, "idle")
   harness.assert_eq(storage.spiders[10].home.y, 0)
   harness.assert_eq(storage.spiders[10].home.surface_index, 1)
+  harness.assert_false(storage.spiders[10].home_sticky)
   harness.assert_eq(storage.spiders[10].combat_style, nil)
   harness.assert_eq(storage.spiders[10].keep_player_destination, nil)
   harness.assert_eq(storage.spiders[10].pending_goal, nil)
   harness.assert_eq(storage.spiders[11].state, "attacking")
   harness.assert_eq(storage.spiders[11].combat_style, "flank")
+  harness.assert_false(storage.spiders[11].home_sticky)
   harness.assert_eq(storage.target_claims[100], 10)
   harness.assert_eq(storage.target_claims[101], nil)
   harness.assert_eq(#storage.path_queue, 0)
   harness.assert_eq(next(storage.path_requests), nil)
+end)
+
+---------------------------------------------------------------------------
+-- Sticky home
+---------------------------------------------------------------------------
+
+harness.run("sticky home enable policy", function()
+  --- Mirrors ai.enable home assignment.
+  local function apply_home_on_enable(ai, spider_pos, sticky_setting)
+    if not sticky_setting or not ai.home_sticky then
+      ai.home = {
+        surface_index = spider_pos.surface_index,
+        x = spider_pos.x,
+        y = spider_pos.y,
+      }
+      if sticky_setting then
+        ai.home_sticky = true
+      end
+    end
+  end
+
+  local function set_home(ai, pos)
+    ai.home = { surface_index = pos.surface_index, x = pos.x, y = pos.y }
+    ai.home_sticky = true
+  end
+
+  local function clear_home(ai)
+    ai.home_sticky = false
+  end
+
+  -- Sticky off: always overwrite, never pin via enable.
+  local ai_off = {
+    home = { surface_index = 1, x = 0, y = 0 },
+    home_sticky = false,
+  }
+  apply_home_on_enable(ai_off, { surface_index = 1, x = 10, y = 20 }, false)
+  harness.assert_eq(ai_off.home.x, 10)
+  harness.assert_eq(ai_off.home.y, 20)
+  harness.assert_false(ai_off.home_sticky)
+  apply_home_on_enable(ai_off, { surface_index = 1, x = 99, y = 88 }, false)
+  harness.assert_eq(ai_off.home.x, 99)
+  harness.assert_eq(ai_off.home.y, 88)
+
+  -- Sticky on + unpinned: capture and pin.
+  local ai_on = {
+    home = { surface_index = 1, x = 0, y = 0 },
+    home_sticky = false,
+  }
+  apply_home_on_enable(ai_on, { surface_index = 1, x = 5, y = 6 }, true)
+  harness.assert_eq(ai_on.home.x, 5)
+  harness.assert_eq(ai_on.home.y, 6)
+  harness.assert_true(ai_on.home_sticky)
+
+  -- Sticky on + pinned: keep home across re-enable.
+  apply_home_on_enable(ai_on, { surface_index = 1, x = 100, y = 200 }, true)
+  harness.assert_eq(ai_on.home.x, 5)
+  harness.assert_eq(ai_on.home.y, 6)
+  harness.assert_true(ai_on.home_sticky)
+
+  -- Clear then enable refreshes.
+  clear_home(ai_on)
+  harness.assert_false(ai_on.home_sticky)
+  apply_home_on_enable(ai_on, { surface_index = 1, x = 7, y = 8 }, true)
+  harness.assert_eq(ai_on.home.x, 7)
+  harness.assert_eq(ai_on.home.y, 8)
+  harness.assert_true(ai_on.home_sticky)
+
+  -- Set home pins even when sticky setting is off.
+  local ai_set = {
+    home = { surface_index = 1, x = 1, y = 1 },
+    home_sticky = false,
+  }
+  set_home(ai_set, { surface_index = 2, x = 3, y = 4 })
+  harness.assert_eq(ai_set.home.x, 3)
+  harness.assert_eq(ai_set.home.y, 4)
+  harness.assert_eq(ai_set.home.surface_index, 2)
+  harness.assert_true(ai_set.home_sticky)
 end)
 
 ---------------------------------------------------------------------------

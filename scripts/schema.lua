@@ -55,6 +55,9 @@ function M.migrate_ai_records()
         ai.home.y = ai.home.y or 0
         ai.home.surface_index = ai.home.surface_index or 1
       end
+      if ai.home_sticky ~= true then
+        ai.home_sticky = false
+      end
       ai.path_request_ids = ai.path_request_ids or {}
       ai.scan_offset = ai.scan_offset or 0
       ai.next_think_tick = ai.next_think_tick or 0
