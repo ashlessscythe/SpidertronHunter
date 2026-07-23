@@ -122,8 +122,6 @@ lua tests/run.lua
 # → dist/SpidertronHunter_<version>.zip
 ```
 
-Upload the zip to [Spidertron Hunter on the Mod Portal](https://mods.factorio.com/mod/SpidertronHunter).
-
 GitHub Actions:
 - `.github/workflows/test.yml` — runs pure Lua tests on push/PR
 - `.github/workflows/release.yml` — on `v*` tags (or manual dispatch), builds `SpidertronHunter_0.x.x.zip` and attaches it to a GitHub Release
