@@ -16,6 +16,7 @@ Maintainer guide for publishing a new version.
 6. **GitHub Actions** runs [`.github/workflows/release.yml`](../.github/workflows/release.yml): tests, builds the Mod Portal ZIP, and validates archive layout.
 7. A **GitHub Release** is created automatically for the tag, with the ZIP attached and generated release notes.
 8. **Upload the generated ZIP** to the [Factorio Mod Portal](https://mods.factorio.com) (Mod → Releases → Upload).
+9. If updating the Mod Portal description gallery, use absolute `raw.githubusercontent.com` URLs to the `media/` files on the `public` branch.
 
 ## Package rules (do not change casually)
 

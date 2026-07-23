@@ -2,6 +2,8 @@
 
 Autonomous Spidertron AI for **Factorio 2.1**.
 
+**[Mod Portal](https://mods.factorio.com/mod/SpidertronHunter)** · Factorio 2.1
+
 Enable Hunter AI on a spidertron and it will search for enemies, path around lakes, kite at range (with optional strafe/circle/flank), retreat when damaged, then return home to restock/repair before hunting again.
 
 No manual patrol routes required.
@@ -16,11 +18,10 @@ No manual patrol routes required.
 
 *Per-spidertron combat style: Hold / Strafe / Circle / Flank.*
 
-For the Mod Portal description, use absolute `raw.githubusercontent.com` URLs to the same files on the `public` branch.
-
 ## Requirements
 
 - Factorio **2.1**
+- [Spidertron Hunter on the Mod Portal](https://mods.factorio.com/mod/SpidertronHunter)
 - Optional: [Spidertron Patrols](https://mods.factorio.com/mod/SpidertronPatrols), [Spidertron Enhancements](https://mods.factorio.com/mod/SpidertronEnhancements), Space Age
 
 ## How to use
@@ -53,17 +54,32 @@ Patrol → Search → Move → Attack (kite) → linger / retreat → Return hom
 
 ## Settings
 
-All important options are **runtime-global** (Map settings → Mod settings):
+All options are **runtime-global** (Map settings → Mod settings). Setting IDs match the in-game names (`sh-*`). Ticks: 60 = 1 second.
 
-| Setting | Purpose |
-|---------|---------|
-| Search radius / max pursuit | How far to look / how far from home to chase |
-| Scan interval / budget | UPS-facing scan throttles |
-| Return home + post-combat linger | Clear an area before heading home (default linger 15s) |
-| Tactical retreat health % + shields | Bail out before dying |
-| Re-engage after retreat | Return to retreat coordinates after restock (default off) |
-| Combat range / style / acid avoid | Kiting behavior |
-| Restock / repair / max wait | Home logistics |
+| Setting | Default | What it does |
+|---------|---------|--------------|
+| Search radius (`sh-search-radius`) | `256` | How far from the spidertron (or home) to search for enemies. Range 32–2048. |
+| Maximum pursuit distance (`sh-max-pursuit-distance`) | `512` | Maximum distance from home a spidertron may travel while hunting. Range 64–4096. |
+| Scan interval (`sh-scan-interval`) | `60` (1s) | How often autonomous brains run, in ticks. Higher is cheaper. Range 10–600. |
+| Scan budget per update (`sh-scan-budget`) | `4` | Maximum expensive scan operations per spidertron think. Range 1–32. |
+| Return home after combat (`sh-return-home-after-combat`) | `true` | After an area is clear, eventually return to home before resuming patrol. |
+| Post-combat linger (`sh-post-combat-linger-ticks`) | `900` (15s) | How long to keep hunting near the last fight before returning home. `0` = return immediately when clear. Range 0–36000. |
+| Tactical retreat health % (`sh-retreat-health-percent`) | `25` | Abort the hunt and return home when hull (and optionally shields) drop below this percent. `0` disables tactical retreat. Range 0–100. |
+| Tactical retreat includes shields (`sh-retreat-include-shields`) | `true` | When enabled, retreat uses combined hull + energy shield integrity. When disabled, only hull health is considered. |
+| Re-engage after retreat (`sh-reengage-after-retreat`) | `false` | After a tactical retreat and restock/repair, return to the retreat coordinates and resume hunting. |
+| Restock at home (`sh-restock-enabled`) | `true` | After returning home, wait for logistics to fulfill requests (with a timeout). |
+| Wait for repair at home (`sh-repair-enabled`) | `true` | After returning home, wait for construction robots to repair (with a timeout). |
+| Maximum restock wait (`sh-max-restock-ticks`) | `3600` (60s) | Never wait longer than this for restock/repair; resume patrol anyway. Range 60–36000. |
+| Enemy prioritization (`sh-enemy-prioritization`) | `nearest` | How to choose among scan candidates: `nearest`, `spawners-first`, or `units-first`. |
+| Maximum idle time (`sh-max-idle-time`) | `600` (10s) | If stuck in WAITING longer than this, resume patrol. Range 60–18000. |
+| Spiders processed per think tick (`sh-spiders-per-think`) | `8` | Cap how many spidertrons update each think tick (UPS safety). Range 1–64. |
+| Enemy cache TTL (`sh-enemy-cache-ttl`) | `18000` (5 min) | How long discovered enemies stay in the shared cache. Range 600–216000. |
+| Combat range (`sh-combat-range`) | `22` | Preferred distance from enemies while attacking (tiles). Hunters kite instead of walking into melee. Range 8–64. |
+| Combat movement style (`sh-combat-style`) | `strafe` | Default combat movement: `hold` (keep range on the radial line), `strafe` (side-step with pauses), `circle` (orbit), or `flank` (angled approach). Per-spidertron GUI can override. |
+| Avoid acid puddles (`sh-avoid-acid`) | `true` | Steer combat waypoints away from acid splash fires and leave puddles urgently. |
+| Combat move interval (`sh-combat-move-interval`) | `90` (1.5s) | Minimum ticks between voluntary combat reposition moves (strafe/circle/flank). Range 20–600. |
+| Combat pause between moves (`sh-combat-pause-ticks`) | `45` (0.75s) | After each combat hop, pause this long to stand still and shoot before the next hop. Range 0–300. |
+| Debug mode (`sh-debug-mode`) | `false` | Show flying text for state transitions and scan results. |
 
 ## Remote interface
 
@@ -79,7 +95,7 @@ Alias: `SpidertronHunter` (same methods).
 
 ## Compatibility
 
-Spidertron Hunter is an independent project. It is not a fork of, and is not intended as a replacement for, [Spidertron Patrols](https://mods.factorio.com/mod/SpidertronPatrols) or [Spidertron Enhancements](https://mods.factorio.com/mod/SpidertronEnhancements).
+Spidertron Hunter ([Mod Portal](https://mods.factorio.com/mod/SpidertronHunter)) is an independent project. It is not a fork of, and is not intended as a replacement for, [Spidertron Patrols](https://mods.factorio.com/mod/SpidertronPatrols) or [Spidertron Enhancements](https://mods.factorio.com/mod/SpidertronEnhancements).
 
 Those mods are listed as optional dependencies. When they are installed, Spidertron Hunter enables optional compatibility features where appropriate (for example, forcing Spidertron Patrols to manual while Hunter AI is enabled and restoring automatic on disable when prior mode is known, and remapping AI state if a spidertron entity is replaced).
 
