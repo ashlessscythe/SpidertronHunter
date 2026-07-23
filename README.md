@@ -18,12 +18,10 @@ No manual patrol routes required.
 
 *Per-spidertron combat style: Hold / Strafe / Circle / Flank.*
 
-For the Mod Portal description, use absolute `raw.githubusercontent.com` URLs to the same files on the `public` branch.
-
 ## Requirements
 
 - Factorio **2.1**
-- Install: [Spidertron Hunter on the Mod Portal](https://mods.factorio.com/mod/SpidertronHunter)
+- [Spidertron Hunter on the Mod Portal](https://mods.factorio.com/mod/SpidertronHunter)
 - Optional: [Spidertron Patrols](https://mods.factorio.com/mod/SpidertronPatrols), [Spidertron Enhancements](https://mods.factorio.com/mod/SpidertronEnhancements), Space Age
 
 ## How to use
@@ -129,8 +127,6 @@ GitHub Actions:
 ## Install (dev)
 
 Symlink or copy this folder into your Factorio `mods` directory as `SpidertronHunter`.
-
-Players: install from the [Mod Portal](https://mods.factorio.com/mod/SpidertronHunter).
 
 ## License
 
