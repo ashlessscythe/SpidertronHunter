@@ -157,6 +157,29 @@ function M.find_walkable_near(spidertron, goal, radius)
   return spidertron.surface.find_non_colliding_position(leg.name, goal, radius, 2)
 end
 
+--- Pure path-target policy. Scouts must finish on land; hunters may use the raw
+--- goal when no walkable snap exists (crowded nests / re-engage).
+--- @param role string?
+--- @param walkable MapPosition?
+--- @param goal MapPosition
+--- @return MapPosition? path_to
+--- @return MapPosition? final_goal  nil,nil = unreachable (scout only)
+function M.path_targets_for_role(role, walkable, goal)
+  if not goal then
+    return nil, nil
+  end
+  if walkable then
+    if role == "scout" then
+      return walkable, walkable
+    end
+    return walkable, goal
+  end
+  if role == "scout" then
+    return nil, nil
+  end
+  return goal, goal
+end
+
 --- Mark the AI that pathing to this goal failed (no direct-into-water).
 --- @param spidertron LuaEntity
 --- @param goal MapPosition
@@ -191,6 +214,9 @@ end
 --- Attempt to issue one path request. Does not queue.
 --- @return "ok"|"budget"|"direct"|"unreachable"
 local function try_start_path(spidertron, goal, resolution)
+  local ai = storage.spiders[spidertron.unit_number]
+  local is_scout = ai and ai.role == "scout"
+
   local dist = util.distance(spidertron.position, goal)
   if dist < SHORT_HOP_DISTANCE then
     local walkable = M.find_walkable_near(spidertron, goal, 8) or goal
@@ -204,8 +230,12 @@ local function try_start_path(spidertron, goal, resolution)
   if not leg_index or not start_position then
     local walkable = M.find_walkable_near(spidertron, goal, WALKABLE_SEARCH_RADIUS)
     if not walkable then
-      mark_path_failed(spidertron, goal)
-      return "unreachable"
+      if is_scout then
+        mark_path_failed(spidertron, goal)
+        return "unreachable"
+      end
+      -- Hunters: legacy direct hop when legs are unavailable.
+      walkable = goal
     end
     spidertron.follow_target = nil
     spidertron.autopilot_destination = walkable
@@ -213,8 +243,13 @@ local function try_start_path(spidertron, goal, resolution)
     return "direct"
   end
 
-  local target_position = M.find_walkable_near(spidertron, goal, WALKABLE_SEARCH_RADIUS)
-  if not target_position then
+  -- Prefer a walkable snap so we do not path into water. Scouts require it;
+  -- hunters fall back to the raw goal (pre-0.1.22) so combat/re-engage still works
+  -- when find_non_colliding_position fails in crowded nest areas.
+  local walkable = M.find_walkable_near(spidertron, goal, WALKABLE_SEARCH_RADIUS)
+  local role = ai and ai.role or nil
+  local target_position, final_goal = M.path_targets_for_role(role, walkable, goal)
+  if not target_position or not final_goal then
     mark_path_failed(spidertron, goal)
     return "unreachable"
   end
@@ -225,14 +260,14 @@ local function try_start_path(spidertron, goal, resolution)
     finished = 0,
     success = false,
     total = 1,
-    goal = goal,
+    goal = final_goal,
   }
 
   local id = request_one_path(
     spidertron,
     start_position,
     target_position,
-    target_position, -- never append a water tile as the final autopilot stop
+    final_goal,
     resolution,
     start_tick,
     leg_index
@@ -243,7 +278,7 @@ local function try_start_path(spidertron, goal, resolution)
     return "budget"
   end
 
-  mark_pending(spidertron, target_position, start_tick)
+  mark_pending(spidertron, final_goal, start_tick)
   return "ok"
 end
 
@@ -473,17 +508,21 @@ function M.on_path_finished(event)
     end
     status.finished = status.finished + 1
     if status.finished >= status.total then
-      -- Pathfinding exhausted. Never direct-autopilot into water.
-      -- Scouts (and anyone whose goal has no walkable snap) get a failure flag.
-      local walkable = M.find_walkable_near(spidertron, info.goal_position, WALKABLE_SEARCH_RADIUS)
+      -- Pathfinding exhausted.
+      -- Scouts: never direct-into-water — flag failure for blacklist/re-pick.
+      -- Hunters: last-resort direct to a walkable snap, else the original goal
+      -- (matches pre-0.1.22 re-engage / combat behavior).
       local is_scout = ai and ai.role == "scout"
-      if is_scout or not walkable then
+      if is_scout then
         mark_path_failed(spidertron, info.goal_position)
       else
+        local walkable = M.find_walkable_near(spidertron, info.goal_position, WALKABLE_SEARCH_RADIUS)
+        local dest = walkable or info.goal_position
         spidertron.follow_target = nil
-        spidertron.autopilot_destination = walkable
+        spidertron.autopilot_destination = dest
         if ai then
-          ai.pending_goal = { x = walkable.x, y = walkable.y }
+          ai.pending_goal = { x = dest.x, y = dest.y }
+          ai.path_failed_goal = nil
         end
       end
       statuses[info.start_tick] = nil

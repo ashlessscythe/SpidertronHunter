@@ -612,6 +612,31 @@ end)
 
 local pathfinder = require("scripts.pathfinder")
 
+harness.run("pathfinder.path_targets_for_role scout vs hunter", function()
+  local land = { x = 5, y = 5 }
+  local goal = { x = 0, y = 0 }
+
+  local p, f = pathfinder.path_targets_for_role("scout", land, goal)
+  harness.assert_eq(p.x, 5)
+  harness.assert_eq(f.x, 5)
+
+  p, f = pathfinder.path_targets_for_role("hunter", land, goal)
+  harness.assert_eq(p.x, 5)
+  harness.assert_eq(f.x, 0)
+
+  p, f = pathfinder.path_targets_for_role("scout", nil, goal)
+  harness.assert_eq(p, nil)
+  harness.assert_eq(f, nil)
+
+  p, f = pathfinder.path_targets_for_role("hunter", nil, goal)
+  harness.assert_eq(p.x, 0)
+  harness.assert_eq(f.x, 0)
+
+  p, f = pathfinder.path_targets_for_role(nil, nil, goal)
+  harness.assert_eq(p.x, 0)
+  harness.assert_eq(f.x, 0)
+end)
+
 harness.run("pathfinder.find_walkable_near nil without legs or entity", function()
   harness.assert_eq(pathfinder.find_walkable_near(nil, { x = 0, y = 0 }), nil)
   harness.assert_eq(

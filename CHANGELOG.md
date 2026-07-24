@@ -2,6 +2,12 @@
 
 All notable changes to Spidertron Hunter are documented here.
 
+## [0.1.24] — 2026-07-23
+
+### Fixed
+
+- Hunter re-engage / combat pathing: walkable-land requirement is scout-only again. Hunters fall back to the raw goal when no snap exists so crowded nests no longer softlock pathing.
+
 ## [0.1.22] — 2026-07-23
 
 ### Fixed

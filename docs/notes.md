@@ -206,4 +206,5 @@ continue. After a standoff, the scout blacklists that goal/corridor and nest for
 ~45s so it picks a different fog target instead of retrying the same path.
 Goals snap onto walkable land (chunk centers are often ocean); pathfinding never
 falls back to direct-into-water for scouts. Unreachable / timed-out goals (~90s)
-are blacklisted and replaced.
+are blacklisted and replaced. Hunters still fall back to the raw goal when no
+walkable snap exists so re-engage / combat pathing is not blocked in crowded nests.
