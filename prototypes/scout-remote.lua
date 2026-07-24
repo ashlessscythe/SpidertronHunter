@@ -7,7 +7,7 @@ data:extend({
     name = "sh-scout-remote",
     icon = "__base__/graphics/icons/spidertron-remote.png",
     icon_color_indicator_mask = "__base__/graphics/icons/spidertron-remote-mask.png",
-    flags = { "not-stackable", "only-in-cursor", "spawnable", "always-show", "excluded-from-character-lift-weight" },
+    flags = remote and remote.flags or { "not-stackable", "only-in-cursor", "spawnable", "always-show" },
     auto_recycle = false,
     subgroup = "spawnables",
     inventory_move_sound = remote and remote.inventory_move_sound or nil,
