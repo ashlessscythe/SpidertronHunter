@@ -202,4 +202,8 @@ enable is refused while ammo slots or active-defense equipment are present; if
 armed mid-run, Scout disables itself. Toolbar toggle still enables Off→Hunter only
 and does not convert active Scouts. If a scout zig-zags or loops in place, it is
 dodging enemies at standoff — send Hunters to clear the locals so exploration can
-continue.
+continue. After a standoff, the scout blacklists that goal/corridor and nest for
+~45s so it picks a different fog target instead of retrying the same path.
+Goals snap onto walkable land (chunk centers are often ocean); pathfinding never
+falls back to direct-into-water for scouts. Unreachable / timed-out goals (~90s)
+are blacklisted and replaced.

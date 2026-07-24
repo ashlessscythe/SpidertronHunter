@@ -427,6 +427,7 @@ function M.disable(spidertron, player)
   ai.scout_goal = nil
   ai.scout_algo_cursor = nil
   ai.scout_started_tick = nil
+  ai.scout_avoid = nil
   if spidertron and spidertron.valid then
     -- Leave any current player destination alone; only drop follow.
     spidertron.follow_target = nil
@@ -665,11 +666,20 @@ States.register(States.MOVING, {
       end
       local cfg = settings_mod.get()
       scout.chart_around(spidertron, cfg.scout_chart_radius)
+
+      if scout.consume_path_failure(ai) then
+        movement.clear(spidertron)
+        return States.SCOUT_EXPLORE
+      end
+      if scout.goal_timed_out(ai) then
+        scout.abandon_timed_out_goal(ai)
+        movement.clear(spidertron)
+        return States.SCOUT_EXPLORE
+      end
+
       local threat = scout.find_standoff_enemy(spidertron, cfg.scout_standoff_distance)
       if threat then
-        local detour = scout.safe_detour(spidertron.position, threat.position, cfg.scout_standoff_distance)
-        ai.scout_goal = detour
-        ai.scout_goal_kind = "detour"
+        local detour = scout.handle_standoff(ai, spidertron, threat, cfg)
         movement.go_to(spidertron, detour, true)
         return
       end
@@ -687,6 +697,7 @@ States.register(States.MOVING, {
         end
         ai.scout_goal = nil
         ai.scout_goal_kind = nil
+        ai.scout_goal_set_tick = nil
         movement.clear(spidertron)
         return States.SCOUT_EXPLORE
       end
@@ -965,6 +976,10 @@ States.register(States.SCOUT_EXPLORE, {
     local cfg = settings_mod.get()
     scout.chart_around(spidertron, cfg.scout_chart_radius)
 
+    if scout.consume_path_failure(ai) then
+      movement.clear(spidertron)
+    end
+
     local retreat = check_tactical_retreat(ai)
     if retreat then
       return retreat
@@ -972,9 +987,7 @@ States.register(States.SCOUT_EXPLORE, {
 
     local threat = scout.find_standoff_enemy(spidertron, cfg.scout_standoff_distance)
     if threat then
-      local detour = scout.safe_detour(spidertron.position, threat.position, cfg.scout_standoff_distance)
-      ai.scout_goal = detour
-      ai.scout_goal_kind = "detour"
+      scout.handle_standoff(ai, spidertron, threat, cfg)
       return States.MOVING
     end
 
@@ -1009,6 +1022,7 @@ States.register(States.SCOUT_EXPLORE, {
     end
     ai.scout_goal = goal
     ai.scout_goal_kind = kind
+    ai.scout_goal_set_tick = game.tick
     return States.MOVING
   end,
 })

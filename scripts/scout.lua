@@ -3,15 +3,23 @@
 local util = require("scripts.util")
 local settings_mod = require("scripts.settings")
 local targeting = require("scripts.targeting")
+local pathfinder = require("scripts.pathfinder")
 
 local M = {}
 
 local SCOUT_REMOTE_NAME = "sh-scout-remote"
 local FRONTIER_SAMPLE_BUDGET = 48
 local ARRIVAL_RADIUS = 12
+--- How long a blocked goal / nest stays off-limits after a standoff (45s).
+local AVOID_TTL_TICKS = 2700
+local AVOID_LIST_CAP = 16
+--- Abandon a scout goal that never arrives (90s).
+local GOAL_TIMEOUT_TICKS = 5400
 
 M.SCOUT_REMOTE_NAME = SCOUT_REMOTE_NAME
 M.ARRIVAL_RADIUS = ARRIVAL_RADIUS
+M.AVOID_TTL_TICKS = AVOID_TTL_TICKS
+M.GOAL_TIMEOUT_TICKS = GOAL_TIMEOUT_TICKS
 
 -- Factorio inventory index; string fallback keeps pure tests working without `defines`.
 local SPIDER_AMMO = (defines and defines.inventory and defines.inventory.spider_ammo) or "spider_ammo"
@@ -114,6 +122,7 @@ function M.set_focus(ai, position)
   ai.scout_goal = nil
   ai.scout_goal_kind = nil
   ai.scout_waypoint_run = nil
+  ai.scout_avoid = nil
 end
 
 --- @param ai table
@@ -121,6 +130,185 @@ function M.reset_run(ai)
   ai.scout_started_tick = game.tick
   ai.scout_algo_cursor = nil
   ai.scout_goal = nil
+  ai.scout_avoid = nil
+end
+
+--- Drop expired avoid entries. Pure aside from game.tick.
+--- @param ai table
+function M.prune_avoid(ai)
+  local list = ai.scout_avoid
+  if not list then
+    return
+  end
+  local tick = (game and game.tick) or 0
+  local dst = {}
+  for i = 1, #list do
+    local e = list[i]
+    if e.until_tick > tick then
+      dst[#dst + 1] = e
+    end
+  end
+  ai.scout_avoid = dst
+end
+
+--- Mark a map position as temporarily unsafe (blocked corridor / nest).
+--- @param ai table
+--- @param pos MapPosition
+--- @param ttl_ticks integer?
+function M.remember_avoid(ai, pos, ttl_ticks)
+  if not pos then
+    return
+  end
+  ai.scout_avoid = ai.scout_avoid or {}
+  local tick = (game and game.tick) or 0
+  ai.scout_avoid[#ai.scout_avoid + 1] = {
+    x = pos.x,
+    y = pos.y,
+    until_tick = tick + (ttl_ticks or AVOID_TTL_TICKS),
+  }
+  while #ai.scout_avoid > AVOID_LIST_CAP do
+    table.remove(ai.scout_avoid, 1)
+  end
+end
+
+--- @param ai table
+--- @param pos MapPosition
+--- @param radius number
+--- @return boolean
+function M.is_avoided(ai, pos, radius)
+  if not pos or not radius or radius <= 0 then
+    return false
+  end
+  M.prune_avoid(ai)
+  local list = ai.scout_avoid
+  if not list or #list == 0 then
+    return false
+  end
+  local r2 = radius * radius
+  for i = 1, #list do
+    if util.distance_squared(pos, list[i]) <= r2 then
+      return true
+    end
+  end
+  return false
+end
+
+--- Pure filter: keep candidates farther than radius from any avoid entry.
+--- @param candidates MapPosition[]
+--- @param avoid_list table[]?
+--- @param radius number
+--- @param now_tick integer?
+--- @return MapPosition[]
+function M.filter_avoided_candidates(candidates, avoid_list, radius, now_tick)
+  if not candidates or #candidates == 0 then
+    return {}
+  end
+  if not avoid_list or #avoid_list == 0 or not radius or radius <= 0 then
+    local copy = {}
+    for i = 1, #candidates do
+      copy[i] = candidates[i]
+    end
+    return copy
+  end
+  now_tick = now_tick or 0
+  local r2 = radius * radius
+  local out = {}
+  for i = 1, #candidates do
+    local c = candidates[i]
+    local bad = false
+    for j = 1, #avoid_list do
+      local a = avoid_list[j]
+      if a.until_tick > now_tick and util.distance_squared(c, a) <= r2 then
+        bad = true
+        break
+      end
+    end
+    if not bad then
+      out[#out + 1] = c
+    end
+  end
+  return out
+end
+
+--- @param spidertron LuaEntity
+--- @param position MapPosition
+--- @param radius number
+--- @return boolean
+function M.position_has_enemy(spidertron, position, radius)
+  if not spidertron or not spidertron.surface or not position then
+    return false
+  end
+  local enemy = spidertron.surface.find_nearest_enemy({
+    position = position,
+    max_distance = radius,
+    force = spidertron.force,
+  })
+  return enemy ~= nil and enemy.valid
+end
+
+--- Snap onto land or reject (ocean / cliff). Blacklists raw goal when rejected.
+--- @param ai table
+--- @param spidertron LuaEntity
+--- @param goal MapPosition
+--- @return MapPosition?
+function M.ensure_walkable_goal(ai, spidertron, goal)
+  if not goal or not util.is_valid_spidertron(spidertron) then
+    return nil
+  end
+  local walkable = pathfinder.find_walkable_near(spidertron, goal, pathfinder.WALKABLE_SEARCH_RADIUS)
+  if not walkable then
+    M.remember_avoid(ai, goal, AVOID_TTL_TICKS)
+    return nil
+  end
+  return walkable
+end
+
+--- Consume a pathfinder failure: blacklist and clear the current scout goal.
+--- @param ai table
+--- @return boolean handled
+function M.consume_path_failure(ai)
+  local failed = ai.path_failed_goal
+  if not failed then
+    return false
+  end
+  M.remember_avoid(ai, failed, AVOID_TTL_TICKS)
+  if ai.scout_goal then
+    M.remember_avoid(ai, ai.scout_goal, AVOID_TTL_TICKS)
+  end
+  if ai.scout_goal_kind == "waypoint" then
+    M.pop_waypoint(ai)
+  end
+  ai.path_failed_goal = nil
+  ai.scout_goal = nil
+  ai.scout_goal_kind = nil
+  ai.scout_goal_set_tick = nil
+  return true
+end
+
+--- True if the current scout goal has been pursued too long without arrival.
+--- @param ai table
+--- @return boolean
+function M.goal_timed_out(ai)
+  local started = ai.scout_goal_set_tick
+  if not started or not ai.scout_goal then
+    return false
+  end
+  return game.tick - started >= GOAL_TIMEOUT_TICKS
+end
+
+--- Abandon current goal after timeout (same blacklist treatment as path failure).
+--- @param ai table
+function M.abandon_timed_out_goal(ai)
+  if ai.scout_goal then
+    M.remember_avoid(ai, ai.scout_goal, AVOID_TTL_TICKS)
+  end
+  if ai.scout_goal_kind == "waypoint" then
+    M.pop_waypoint(ai)
+  end
+  ai.scout_goal = nil
+  ai.scout_goal_kind = nil
+  ai.scout_goal_set_tick = nil
+  ai.path_failed_goal = nil
 end
 
 --- @param ai table
@@ -299,6 +487,8 @@ function M.pick_frontier_goal(ai, cfg)
     return nil
   end
   local center = M.focus_or_home(ai)
+  local standoff = cfg.scout_standoff_distance or 48
+  local avoid_r = standoff * 1.5
   local candidates = M.sample_uncharted_chunks(
     spidertron.force,
     spidertron.surface,
@@ -306,8 +496,39 @@ function M.pick_frontier_goal(ai, cfg)
     cfg.scout_max_distance,
     FRONTIER_SAMPLE_BUDGET
   )
-  return M.nearest_within(spidertron.position, cfg.scout_max_distance * 2, candidates)
-    or M.nearest_within(center, cfg.scout_max_distance, candidates)
+  M.prune_avoid(ai)
+  local filtered = M.filter_avoided_candidates(
+    candidates,
+    ai.scout_avoid,
+    avoid_r,
+    game.tick
+  )
+  -- Prefer goals that are not sitting on a nest.
+  local safe = {}
+  for i = 1, #filtered do
+    local c = filtered[i]
+    if not M.position_has_enemy(spidertron, c, standoff) then
+      safe[#safe + 1] = c
+    end
+  end
+  if #safe == 0 then
+    safe = filtered
+  end
+  -- Try nearest candidates until one snaps onto land (chunk centers are often water).
+  local ordered = {}
+  for i = 1, #safe do
+    ordered[i] = safe[i]
+  end
+  table.sort(ordered, function(a, b)
+    return util.distance_squared(spidertron.position, a) < util.distance_squared(spidertron.position, b)
+  end)
+  for i = 1, math.min(#ordered, 12) do
+    local walkable = M.ensure_walkable_goal(ai, spidertron, ordered[i])
+    if walkable then
+      return walkable
+    end
+  end
+  return nil
 end
 
 --- @param ai table
@@ -318,17 +539,39 @@ function M.pick_algorithm_goal(ai, cfg)
   local center = M.focus_or_home(ai)
   local step = math.max(24, (cfg.scout_chart_radius or 64) * 0.75)
   local algo = cfg.scout_algorithm or "frontier"
+  local standoff = cfg.scout_standoff_distance or 48
+  local avoid_r = standoff * 1.5
 
-  if algo == "lawnmower" then
-    local goal, cursor = M.lawnmower_next(center, cfg.scout_max_distance, step, ai.scout_algo_cursor)
-    ai.scout_algo_cursor = cursor
-    return goal
-  end
-
-  if algo == "spiral" then
-    local goal, cursor = M.spiral_next(center, cfg.scout_max_distance, step, ai.scout_algo_cursor)
-    ai.scout_algo_cursor = cursor
-    return goal
+  if algo == "lawnmower" or algo == "spiral" then
+    local spidertron = ai.entity
+    for _ = 1, 12 do
+      local goal, cursor
+      if algo == "lawnmower" then
+        goal, cursor = M.lawnmower_next(center, cfg.scout_max_distance, step, ai.scout_algo_cursor)
+      else
+        goal, cursor = M.spiral_next(center, cfg.scout_max_distance, step, ai.scout_algo_cursor)
+      end
+      ai.scout_algo_cursor = cursor
+      if not goal then
+        return nil
+      end
+      local skip = M.is_avoided(ai, goal, avoid_r)
+      if not skip and util.is_valid_spidertron(spidertron) and M.position_has_enemy(spidertron, goal, standoff) then
+        M.remember_avoid(ai, goal, AVOID_TTL_TICKS)
+        skip = true
+      end
+      if not skip and util.is_valid_spidertron(spidertron) then
+        local walkable = M.ensure_walkable_goal(ai, spidertron, goal)
+        if not walkable then
+          skip = true
+        else
+          return walkable
+        end
+      elseif not skip then
+        return goal
+      end
+    end
+    return nil
   end
 
   -- frontier (default)
@@ -342,10 +585,38 @@ end
 --- @return string kind "waypoint"|"explore"|nil
 function M.pick_goal(ai, cfg)
   cfg = cfg or settings_mod.get()
-  local wp = M.peek_waypoint(ai)
-  if wp then
-    return wp, "waypoint"
+  local standoff = cfg.scout_standoff_distance or 48
+  local avoid_r = standoff * 1.5
+  local spidertron = ai.entity
+
+  -- Skip waypoints that were recently blocked or sit on biters.
+  while M.has_waypoints(ai) do
+    local wp = M.peek_waypoint(ai)
+    if not wp then
+      break
+    end
+    local blocked = M.is_avoided(ai, wp, avoid_r)
+    if not blocked and util.is_valid_spidertron(spidertron) then
+      blocked = M.position_has_enemy(spidertron, wp, standoff)
+    end
+    if blocked then
+      M.remember_avoid(ai, wp, AVOID_TTL_TICKS)
+      M.pop_waypoint(ai)
+    else
+      if util.is_valid_spidertron(spidertron) then
+        local walkable = M.ensure_walkable_goal(ai, spidertron, wp)
+        if not walkable then
+          M.pop_waypoint(ai)
+        else
+          -- Keep waypoint in queue until arrival; navigate to snapped land.
+          return walkable, "waypoint"
+        end
+      else
+        return wp, "waypoint"
+      end
+    end
   end
+
   local goal = M.pick_algorithm_goal(ai, cfg)
   if goal then
     return goal, "explore"
@@ -406,6 +677,39 @@ function M.safe_detour(from, threat, distance)
     x = from.x + dx * scale,
     y = from.y + dy * scale,
   }
+end
+
+--- On standoff: blacklist the blocked goal/corridor and threat so we do not
+--- immediately re-path through the same nest (zigzag). Returns a detour hop.
+--- @param ai table
+--- @param spidertron LuaEntity
+--- @param threat LuaEntity
+--- @param cfg table?
+--- @return MapPosition detour
+function M.handle_standoff(ai, spidertron, threat, cfg)
+  cfg = cfg or settings_mod.get()
+  local standoff = cfg.scout_standoff_distance or 48
+  local kind = ai.scout_goal_kind
+  local goal = ai.scout_goal
+  if kind and kind ~= "detour" and goal then
+    M.remember_avoid(ai, goal, AVOID_TTL_TICKS)
+    M.remember_avoid(ai, {
+      x = (spidertron.position.x + goal.x) * 0.5,
+      y = (spidertron.position.y + goal.y) * 0.5,
+    }, AVOID_TTL_TICKS)
+    if kind == "waypoint" then
+      M.pop_waypoint(ai)
+    end
+  end
+  if threat and threat.valid then
+    M.remember_avoid(ai, threat.position, AVOID_TTL_TICKS)
+  end
+  local detour = M.safe_detour(spidertron.position, threat.position, standoff * 1.25)
+  local walkable = M.ensure_walkable_goal(ai, spidertron, detour) or detour
+  ai.scout_goal = walkable
+  ai.scout_goal_kind = "detour"
+  ai.scout_goal_set_tick = game.tick
+  return walkable
 end
 
 return M

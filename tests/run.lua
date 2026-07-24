@@ -579,6 +579,157 @@ harness.run("scout.has_weapons ammo and laser defense", function()
   }))
 end)
 
+harness.run("scout avoid list blocks retry of same corridor", function()
+  game.tick = 100
+  local ai = { scout_avoid = {} }
+  scout.remember_avoid(ai, { x = 50, y = 0 }, 500)
+  harness.assert_true(scout.is_avoided(ai, { x = 55, y = 0 }, 20))
+  harness.assert_false(scout.is_avoided(ai, { x = 200, y = 0 }, 20))
+  local filtered = scout.filter_avoided_candidates(
+    { { x = 50, y = 0 }, { x = 200, y = 0 } },
+    ai.scout_avoid,
+    20,
+    100
+  )
+  harness.assert_eq(#filtered, 1)
+  harness.assert_eq(filtered[1].x, 200)
+  game.tick = 700
+  scout.prune_avoid(ai)
+  harness.assert_eq(#ai.scout_avoid, 0)
+end)
+
+harness.run("scout.goal_timed_out after TTL", function()
+  game.tick = 1000
+  local ai = { scout_goal = { x = 1, y = 2 }, scout_goal_set_tick = 100 }
+  harness.assert_false(scout.goal_timed_out(ai))
+  harness.assert_false(scout.goal_timed_out({}))
+  game.tick = 100 + scout.GOAL_TIMEOUT_TICKS
+  harness.assert_true(scout.goal_timed_out(ai))
+  scout.abandon_timed_out_goal(ai)
+  harness.assert_eq(ai.scout_goal, nil)
+  harness.assert_eq(ai.scout_goal_set_tick, nil)
+end)
+
+local pathfinder = require("scripts.pathfinder")
+
+harness.run("pathfinder.find_walkable_near nil without legs or entity", function()
+  harness.assert_eq(pathfinder.find_walkable_near(nil, { x = 0, y = 0 }), nil)
+  harness.assert_eq(
+    pathfinder.find_walkable_near({
+      valid = true,
+      type = "spider-vehicle",
+      name = "spidertron",
+      get_spider_legs = function()
+        return {}
+      end,
+    }, { x = 0, y = 0 }),
+    nil
+  )
+end)
+
+harness.run("pathfinder.find_walkable_near snaps via find_non_colliding_position", function()
+  local called_with = nil
+  local spider = {
+    valid = true,
+    type = "spider-vehicle",
+    name = "spidertron",
+    get_spider_legs = function()
+      return { { valid = true, name = "spidertron-leg-1" } }
+    end,
+    surface = {
+      find_non_colliding_position = function(name, goal, radius, _step)
+        called_with = { name = name, goal = goal, radius = radius }
+        return { x = 12, y = 8 }
+      end,
+    },
+  }
+  local pos = pathfinder.find_walkable_near(spider, { x = 10, y = 0 }, 32)
+  harness.assert_eq(called_with.name, "spidertron-leg-1")
+  harness.assert_eq(called_with.goal.x, 10)
+  harness.assert_eq(called_with.radius, 32)
+  harness.assert_eq(pos.x, 12)
+  harness.assert_eq(pos.y, 8)
+
+  spider.surface.find_non_colliding_position = function()
+    return nil
+  end
+  harness.assert_eq(pathfinder.find_walkable_near(spider, { x = 99, y = 99 }, 16), nil)
+end)
+
+harness.run("scout.ensure_walkable_goal rejects ocean and accepts land snap", function()
+  game.tick = 10
+  local orig = pathfinder.find_walkable_near
+  local spider = { valid = true, type = "spider-vehicle", name = "spidertron" }
+
+  pathfinder.find_walkable_near = function()
+    return nil
+  end
+  local ai = { scout_avoid = {} }
+  harness.assert_eq(scout.ensure_walkable_goal(ai, spider, { x = 99, y = 99 }), nil)
+  harness.assert_true(scout.is_avoided(ai, { x = 99, y = 99 }, 5))
+
+  pathfinder.find_walkable_near = function()
+    return { x = 100, y = 101 }
+  end
+  local snapped = scout.ensure_walkable_goal(ai, spider, { x = 50, y = 50 })
+  harness.assert_eq(snapped.x, 100)
+  harness.assert_eq(snapped.y, 101)
+
+  pathfinder.find_walkable_near = orig
+end)
+
+harness.run("scout.consume_path_failure blacklists goals and clears state", function()
+  game.tick = 50
+  local ai = {
+    path_failed_goal = { x = 10, y = 10 },
+    scout_goal = { x = 20, y = 20 },
+    scout_goal_kind = "explore",
+    scout_goal_set_tick = 1,
+    scout_avoid = {},
+  }
+  harness.assert_true(scout.consume_path_failure(ai))
+  harness.assert_eq(ai.path_failed_goal, nil)
+  harness.assert_eq(ai.scout_goal, nil)
+  harness.assert_eq(ai.scout_goal_kind, nil)
+  harness.assert_eq(ai.scout_goal_set_tick, nil)
+  harness.assert_true(scout.is_avoided(ai, { x = 10, y = 10 }, 5))
+  harness.assert_true(scout.is_avoided(ai, { x = 20, y = 20 }, 5))
+  harness.assert_false(scout.consume_path_failure(ai))
+end)
+
+harness.run("scout.consume_path_failure pops blocked waypoint", function()
+  game.tick = 50
+  local ai = {
+    path_failed_goal = { x = 1, y = 1 },
+    scout_goal = { x = 1, y = 1 },
+    scout_goal_kind = "waypoint",
+    waypoints = { { x = 1, y = 1 }, { x = 5, y = 5 } },
+    scout_avoid = {},
+  }
+  scout.consume_path_failure(ai)
+  harness.assert_eq(#ai.waypoints, 1)
+  harness.assert_eq(ai.waypoints[1].x, 5)
+end)
+
+harness.run("scout.abandon_timed_out_goal blacklists and pops waypoint", function()
+  game.tick = 50
+  local ai = {
+    scout_goal = { x = 3, y = 3 },
+    scout_goal_kind = "waypoint",
+    scout_goal_set_tick = 1,
+    waypoints = { { x = 3, y = 3 }, { x = 7, y = 7 } },
+    path_failed_goal = { x = 9, y = 9 },
+    scout_avoid = {},
+  }
+  scout.abandon_timed_out_goal(ai)
+  harness.assert_eq(ai.scout_goal, nil)
+  harness.assert_eq(ai.path_failed_goal, nil)
+  harness.assert_eq(ai.scout_goal_kind, nil)
+  harness.assert_eq(#ai.waypoints, 1)
+  harness.assert_eq(ai.waypoints[1].x, 7)
+  harness.assert_true(scout.is_avoided(ai, { x = 3, y = 3 }, 5))
+end)
+
 harness.run("scout.safe_detour steps away from threat", function()
   local from = { x = 10, y = 0 }
   local threat = { x = 0, y = 0 }

@@ -100,9 +100,12 @@ function M.migrate_ai_records()
       ai.strafe_sign = nil
       ai.flank_sign = nil
       ai.scout_goal = nil
-      ai.scout_started_tick = nil
       ai.scout_goal_kind = nil
       ai.scout_waypoint_run = nil
+      ai.scout_started_tick = nil
+      ai.scout_avoid = nil
+      ai.scout_goal_set_tick = nil
+      ai.path_failed_goal = nil
     end
   end
 

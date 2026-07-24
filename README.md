@@ -64,7 +64,7 @@ Explore → Move (lake-aware) → chart / standoff → (limits or done) → Retu
 - Never enters combat; guns stay passive. Requires empty ammo (and no personal laser defense); enabling Scout is refused if armed, and Scout aborts if ammo is loaded mid-run.
 - Charts fog each think tick; records nearby enemies into the shared cache
 - Caps: max distance from focus/home, max run time, standoff distance
-- If a scout keeps zig-zagging or looping in one area, it is standoff-dodging locals — send a Hunter squad to clear them so the scout can move on
+- If a scout keeps zig-zagging or looping in one area, it is standoff-dodging locals — send a Hunter squad to clear them so the scout can move on. Scouts also blacklist a blocked corridor briefly so they try a different route instead of oscillating.
 
 ## Settings
 

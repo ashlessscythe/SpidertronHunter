@@ -12,6 +12,8 @@ local SHORT_HOP_DISTANCE = 10
 --- Re-path if a spider barely moves while still far from its goal.
 local STUCK_TICKS = 180
 local STUCK_MOVE_EPS = 1.5
+--- How far to search for land when the raw goal sits on water.
+local WALKABLE_SEARCH_RADIUS = 32
 
 local function get_leg_collision_mask(spidertron)
   local legs = spidertron.get_spider_legs()
@@ -137,6 +139,39 @@ local function pick_start_leg(spidertron)
   return nil, nil
 end
 
+--- Snap a goal onto walkable ground near spider legs (nil = ocean / blocked).
+--- @param spidertron LuaEntity
+--- @param goal MapPosition
+--- @param radius number?
+--- @return MapPosition?
+function M.find_walkable_near(spidertron, goal, radius)
+  if not util.is_valid_spidertron(spidertron) or not goal then
+    return nil
+  end
+  radius = radius or WALKABLE_SEARCH_RADIUS
+  local legs = spidertron.get_spider_legs()
+  local leg = legs and legs[1]
+  if not leg or not leg.valid then
+    return nil
+  end
+  return spidertron.surface.find_non_colliding_position(leg.name, goal, radius, 2)
+end
+
+--- Mark the AI that pathing to this goal failed (no direct-into-water).
+--- @param spidertron LuaEntity
+--- @param goal MapPosition
+local function mark_path_failed(spidertron, goal)
+  local ai = storage.spiders[spidertron.unit_number]
+  if not ai or not goal then
+    return
+  end
+  ai.path_failed_goal = { x = goal.x, y = goal.y }
+  ai.path_start_tick = nil
+  ai.pending_goal = nil
+  spidertron.follow_target = nil
+  spidertron.autopilot_destination = nil
+end
+
 --- Mark AI as waiting on this goal (in-flight or queued).
 --- @param spidertron LuaEntity
 --- @param goal MapPosition
@@ -150,34 +185,39 @@ local function mark_pending(spidertron, goal, start_tick)
   ai.pending_goal = { x = goal.x, y = goal.y }
   ai.path_stuck_since = nil
   ai.path_stuck_pos = nil
+  ai.path_failed_goal = nil
 end
 
 --- Attempt to issue one path request. Does not queue.
---- @return "ok"|"budget"|"direct"
+--- @return "ok"|"budget"|"direct"|"unreachable"
 local function try_start_path(spidertron, goal, resolution)
   local dist = util.distance(spidertron.position, goal)
   if dist < SHORT_HOP_DISTANCE then
+    local walkable = M.find_walkable_near(spidertron, goal, 8) or goal
     spidertron.follow_target = nil
-    spidertron.autopilot_destination = goal
-    mark_pending(spidertron, goal, nil)
+    spidertron.autopilot_destination = walkable
+    mark_pending(spidertron, walkable, nil)
     return "direct"
   end
 
   local leg_index, start_position = pick_start_leg(spidertron)
   if not leg_index or not start_position then
+    local walkable = M.find_walkable_near(spidertron, goal, WALKABLE_SEARCH_RADIUS)
+    if not walkable then
+      mark_path_failed(spidertron, goal)
+      return "unreachable"
+    end
     spidertron.follow_target = nil
-    spidertron.autopilot_destination = goal
-    mark_pending(spidertron, goal, nil)
+    spidertron.autopilot_destination = walkable
+    mark_pending(spidertron, walkable, nil)
     return "direct"
   end
 
-  local legs = spidertron.get_spider_legs()
-  local target_position = spidertron.surface.find_non_colliding_position(
-    legs[1].name,
-    goal,
-    10,
-    2
-  ) or goal
+  local target_position = M.find_walkable_near(spidertron, goal, WALKABLE_SEARCH_RADIUS)
+  if not target_position then
+    mark_path_failed(spidertron, goal)
+    return "unreachable"
+  end
 
   local start_tick = game.tick
   storage.path_statuses[spidertron.unit_number] = storage.path_statuses[spidertron.unit_number] or {}
@@ -192,7 +232,7 @@ local function try_start_path(spidertron, goal, resolution)
     spidertron,
     start_position,
     target_position,
-    goal,
+    target_position, -- never append a water tile as the final autopilot stop
     resolution,
     start_tick,
     leg_index
@@ -203,14 +243,14 @@ local function try_start_path(spidertron, goal, resolution)
     return "budget"
   end
 
-  mark_pending(spidertron, goal, start_tick)
+  mark_pending(spidertron, target_position, start_tick)
   return "ok"
 end
 
 --- @param spidertron LuaEntity
 --- @param goal MapPosition
 --- @param resolution integer?
---- @return boolean started
+--- @return boolean started  false when unreachable
 function M.request_path_to(spidertron, goal, resolution)
   resolution = resolution or -3
   M.clear_queue_for(spidertron.unit_number)
@@ -227,6 +267,10 @@ function M.request_path_to(spidertron, goal, resolution)
       goal = { x = goal.x, y = goal.y },
       resolution = resolution,
     })
+    return true
+  end
+  if result == "unreachable" then
+    return false
   end
   return true
 end
@@ -254,6 +298,7 @@ function M.process_queue()
       if result == "budget" then
         remaining[#remaining + 1] = item
       end
+      -- unreachable / ok / direct: drop from queue
     elseif item.kind == "retry" then
       local id = request_one_path(
         spidertron,
@@ -428,9 +473,19 @@ function M.on_path_finished(event)
     end
     status.finished = status.finished + 1
     if status.finished >= status.total then
-      -- All resolutions failed — direct fallback as last resort.
-      spidertron.follow_target = nil
-      spidertron.autopilot_destination = info.goal_position
+      -- Pathfinding exhausted. Never direct-autopilot into water.
+      -- Scouts (and anyone whose goal has no walkable snap) get a failure flag.
+      local walkable = M.find_walkable_near(spidertron, info.goal_position, WALKABLE_SEARCH_RADIUS)
+      local is_scout = ai and ai.role == "scout"
+      if is_scout or not walkable then
+        mark_path_failed(spidertron, info.goal_position)
+      else
+        spidertron.follow_target = nil
+        spidertron.autopilot_destination = walkable
+        if ai then
+          ai.pending_goal = { x = walkable.x, y = walkable.y }
+        end
+      end
       statuses[info.start_tick] = nil
     end
     return
@@ -483,5 +538,6 @@ function M.on_tick_reset_budget()
 end
 
 M.SHORT_HOP_DISTANCE = SHORT_HOP_DISTANCE
+M.WALKABLE_SEARCH_RADIUS = WALKABLE_SEARCH_RADIUS
 
 return M

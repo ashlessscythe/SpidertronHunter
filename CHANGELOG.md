@@ -2,6 +2,17 @@
 
 All notable changes to Spidertron Hunter are documented here.
 
+## [0.1.22] — 2026-07-23
+
+### Fixed
+
+- Scout zigzag after standoff: temporarily blacklist the blocked goal/corridor so the scout picks a different fog target instead of oscillating.
+- Scout stuck on ocean/unreachable goals: snap destinations to walkable land, never direct-autopilot into water, and abandon goals that time out (~90s).
+
+### Added
+
+- Pure Lua tests for walkable snap, path-failure blacklist, and scout goal timeout.
+
 ## [0.1.20] — 2026-07-23
 
 ### Added
