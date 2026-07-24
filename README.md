@@ -16,6 +16,10 @@ Autonomous Spidertron AI for **Factorio 2.1**.
 
 *Per-spidertron combat style: Hold / Strafe / Circle / Flank.*
 
+![Scout explore paths around lakes and fog](media/scout_paths.png)
+
+*Scout mode — lake-aware paths charting fog while keeping standoff from biters.*
+
 For the Mod Portal description, use absolute `raw.githubusercontent.com` URLs to the same files on the `public` branch.
 
 ## Requirements
