@@ -1,10 +1,12 @@
 # Spidertron Hunter
 
-Autonomous Spidertron AI for **Factorio 2.1**.
+Autonomous Spidertron AI for **Factorio 2.0**.
 
 **Hunter** mode searches for enemies, paths around lakes, kites at range, retreats when damaged, then returns home to restock/repair.
 
 **Scout** mode explores and charts fog without engaging — keeps standoff from biters, feeds the shared enemy cache, then hunters can clean up.
+
+**Fleet manager** groups spidertrons on your surface for follow, remote, home, and AI controls.
 
 ## Gallery
 
@@ -24,11 +26,10 @@ Autonomous Spidertron AI for **Factorio 2.1**.
 
 *Fleet manager — groups on the current surface with follow, remote, home, and AI controls.*
 
-For the Mod Portal description, use absolute `raw.githubusercontent.com` URLs to the same files on the `public` branch.
-
 ## Requirements
 
-- Factorio **2.1**
+- Factorio **2.0**
+- [Spidertron Hunter on the Mod Portal](https://mods.factorio.com/mod/SpidertronHunter)
 - Optional: [Spidertron Patrols](https://mods.factorio.com/mod/SpidertronPatrols), [Spidertron Enhancements](https://mods.factorio.com/mod/SpidertronEnhancements), Space Age
 
 ## How to use
@@ -122,6 +123,8 @@ All important options are **runtime-global** (Map settings → Mod settings):
 /c remote.call("spidertron_hunter", "set_scout_focus", game.player.selected, {x=0, y=0})
 /c remote.call("spidertron_hunter", "add_scout_waypoint", game.player.selected, {x=100, y=0})
 /c remote.call("spidertron_hunter", "clear_scout_waypoints", game.player.selected)
+/c remote.call("spidertron_hunter", "follow_player", game.player.selected, game.player)
+/c remote.call("spidertron_hunter", "return_home", game.player.selected)
 ```
 
 Alias: `SpidertronHunter` (same methods).
@@ -138,7 +141,7 @@ Those mods are listed as optional dependencies. When they are installed, Spidert
 
 This project is developed with AI-assisted tooling. All architecture, testing, and release decisions are reviewed before publication.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, tests, packaging, and PR expectations. Maintainers: [docs/releasing.md](docs/releasing.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, tests, packaging, and PR expectations. Maintainers: [docs/releasing.md](docs/releasing.md). Mod Portal description paste: [docs/mod-portal.md](docs/mod-portal.md).
 
 ### Tests
 

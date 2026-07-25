@@ -190,6 +190,23 @@ on disable restore auto only when prior mode was known (remote table or open
 `on_patrol_switch`). If mode cannot be read, leave manual so already-manual
 schedules are not flipped to auto. Patrols stays an optional `?` dependency.
 
+## Fleet manager (0.2.0)
+
+`scripts/manager_gui.lua` lists spider-vehicles on the player's current surface,
+grouped by `entity_label` (fallback: prototype name). Toolbar / `Ctrl+Shift+M`
+opens the window; pin keeps it open across remotes and spider GUIs.
+
+Group actions call into `scripts/ai.lua`:
+
+- `follow_player` — cancel pathing, WAITING with `wait_reason = "follow-player"`,
+  then vanilla `follow_target` on the player character (AI stays enabled).
+- `return_home` — active AI enters RETURNING; idle spiders with a home use autopilot.
+- AI toggle — same Off→Hunter / all-on→disable semantics as the toolbar (leaves
+  active Scouts alone when enabling).
+- Ctrl-click Home — `set_home` per member at current position (sticky pin).
+
+Remote methods: `follow_player`, `return_home`.
+
 ## Scout role (0.1.20)
 
 Any eligible spidertron can be Mode → Scout (no new vehicle entity). Scout remote
