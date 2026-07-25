@@ -2,6 +2,36 @@
 
 All notable changes to Spidertron Hunter are documented here.
 
+## [0.2.1] — 2026-07-24
+
+### Changed
+
+- Targets Factorio 2.0.
+
+## [0.2.0] — 2026-07-24
+
+### Added
+
+- Fleet manager GUI (`Ctrl+Shift+M` / **Hunter fleet** toolbar): spidertrons on the current surface grouped by entity label, with follow player, group remote, go home (Ctrl-click to set home), remote-view, open settings, AI toggle, and pin.
+- Remote interface: `follow_player`, `return_home`.
+- Gallery screenshot for the fleet manager (`media/fleet_manager.png`).
+
+## [0.1.26] — 2026-07-24
+
+### Fixed
+
+- Scout remote item flags no longer use a Factorio 2.1-only flag when targeting 2.0.
+
+## [0.1.25] — 2026-07-23
+
+### Added
+
+- Gallery screenshot for scout explore paths (`media/scout_paths.png`).
+
+### Changed
+
+- Targets Factorio 2.0.
+
 ## [0.1.24] — 2026-07-23
 
 ### Fixed

@@ -6,7 +6,7 @@ Thanks for contributing to Spidertron Hunter.
 
 1. Clone this repository.
 2. Symlink or copy the repo into your Factorio `mods` folder as `SpidertronHunter` (folder name must match `info.json` `name`).
-3. Launch Factorio 2.1 with the mod enabled.
+3. Launch Factorio 2.0 with the mod enabled.
 
 Optional soft dependencies: Spidertron Patrols, Spidertron Enhancements, Space Age.
 
