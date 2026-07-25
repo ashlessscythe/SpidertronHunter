@@ -4,9 +4,25 @@ local ai = require("scripts.ai")
 local pathfinder = require("scripts.pathfinder")
 local targeting = require("scripts.targeting")
 local gui = require("scripts.gui")
+local manager_gui = require("scripts.manager_gui")
 local shortcut = require("scripts.shortcut")
 
 require("scripts.remote-interface")
+
+-- Debounce: associated_control_input can fire both custom-input and on_lua_shortcut.
+local last_manager_tick = {}
+
+local function toggle_manager(player)
+  if not player or not player.valid then
+    return
+  end
+  local tick = game.tick
+  if last_manager_tick[player.index] == tick then
+    return
+  end
+  last_manager_tick[player.index] = tick
+  manager_gui.toggle(player)
+end
 
 --- Re-bind nth-tick handlers. Re-registering the same tick replaces the previous handler.
 local function register_nth_tick(interval)
@@ -121,11 +137,18 @@ script.on_event("sh-toggle-autonomy", function(event)
   toggle_autonomy(game.get_player(event.player_index))
 end)
 
+script.on_event("sh-open-manager", function(event)
+  toggle_manager(game.get_player(event.player_index))
+end)
+
 script.on_event(defines.events.on_lua_shortcut, function(event)
-  if event.prototype_name ~= "sh-toggle-autonomy" then
+  if event.prototype_name == "sh-toggle-autonomy" then
+    toggle_autonomy(game.get_player(event.player_index))
     return
   end
-  toggle_autonomy(game.get_player(event.player_index))
+  if event.prototype_name == "sh-open-manager" then
+    toggle_manager(game.get_player(event.player_index))
+  end
 end)
 
 -- Keep toolbar highlight in sync with remote selection.
@@ -143,8 +166,12 @@ script.on_event(defines.events.on_gui_opened, function(event)
     shortcut.sync_player(player)
   end
 end)
-script.on_event(defines.events.on_gui_closed, gui.on_gui_closed)
+script.on_event(defines.events.on_gui_closed, function(event)
+  manager_gui.on_gui_closed(event)
+  gui.on_gui_closed(event)
+end)
 script.on_event(defines.events.on_gui_click, function(event)
+  manager_gui.on_gui_click(event)
   gui.on_gui_click(event)
   local player = game.get_player(event.player_index)
   if player then

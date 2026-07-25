@@ -86,6 +86,14 @@ local methods = {
     return ai.clear_home(spidertron)
   end,
 
+  follow_player = function(spidertron, player)
+    return ai.follow_player(spidertron, player)
+  end,
+
+  return_home = function(spidertron)
+    return ai.return_home(spidertron)
+  end,
+
   set_scout_focus = function(spidertron, position)
     if not spidertron or not spidertron.valid then
       return false

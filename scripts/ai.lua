@@ -411,6 +411,61 @@ function M.clear_home(spidertron)
   return true
 end
 
+--- Follow the player's character. Active AI pauses in WAITING; idle spiders just follow.
+--- @param spidertron LuaEntity
+--- @param player LuaPlayer
+--- @return boolean
+function M.follow_player(spidertron, player)
+  if not util.is_valid_spidertron(spidertron) then
+    return false
+  end
+  if not player or not player.valid or not player.character or not player.character.valid then
+    return false
+  end
+  if spidertron.surface_index ~= player.character.surface_index then
+    return false
+  end
+
+  local ai = persistence.get_ai_for_entity(spidertron)
+  if ai and ai.state ~= States.IDLE then
+    cancel_ai_pathing(ai)
+    release_claim(ai)
+    ai.player_goal = nil
+    ai.keep_player_destination = nil
+    ai.wait_reason = "follow-player"
+    States.transition(ai, States.WAITING)
+  end
+  movement.follow(spidertron, player.character)
+  return true
+end
+
+--- Send spidertron home. Active AI enters RETURNING; idle with a home record uses autopilot only.
+--- @param spidertron LuaEntity
+--- @return boolean
+function M.return_home(spidertron)
+  if not util.is_valid_spidertron(spidertron) then
+    return false
+  end
+  local ai = persistence.get_ai_for_entity(spidertron)
+  if not ai or not ai.home then
+    return false
+  end
+  if ai.state ~= States.IDLE then
+    cancel_ai_pathing(ai)
+    release_claim(ai)
+    ai.player_goal = nil
+    ai.keep_player_destination = nil
+    ai.wait_reason = nil
+    if spidertron.follow_target then
+      spidertron.follow_target = nil
+    end
+    States.transition(ai, States.RETURNING)
+    return true
+  end
+  movement.go_to(spidertron, movement.home_position(ai), true)
+  return true
+end
+
 --- @param spidertron LuaEntity
 --- @param player LuaPlayer?
 function M.disable(spidertron, player)
@@ -916,6 +971,18 @@ States.register(States.WAITING, {
       return
     end
 
+    -- Manager / follow-player: stay until another order clears follow.
+    if ai.wait_reason == "follow-player" then
+      if spidertron.follow_target and spidertron.follow_target.valid then
+        return
+      end
+      ai.wait_reason = nil
+      if is_scout(ai) then
+        return States.SCOUT_EXPLORE
+      end
+      return States.SEARCH
+    end
+
     if is_scout(ai) then
       if ai.wait_reason == "scout-idle" then
         -- Stay parked until a remote order arrives.
@@ -1065,6 +1132,9 @@ function M.on_player_remote(spidertron, position, player)
   if is_scout(ai) then
     cancel_ai_pathing(ai)
     release_claim(ai)
+    if spidertron.follow_target then
+      spidertron.follow_target = nil
+    end
     if not position then
       return
     end
@@ -1093,6 +1163,10 @@ function M.on_player_remote(spidertron, position, player)
 
   cancel_ai_pathing(ai)
   release_claim(ai)
+
+  if spidertron.follow_target then
+    spidertron.follow_target = nil
+  end
 
   local enemy = nil
   if position and spidertron.surface then
