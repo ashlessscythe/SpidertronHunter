@@ -2,6 +2,13 @@
 
 All notable changes to Spidertron Hunter are documented here.
 
+## [0.2.2] — 2026-07-25
+
+### Fixed
+
+- Fleet manager now refreshes while open when spidertrons are created, destroyed, renamed, recolored, or when the player changes surface (UPS-friendly dirty flag + deferred rebuild).
+- AI enable/disable (toolbar, relative GUI, or manager) updates fleet manager AI button state when the window is open.
+
 ## [0.2.1] — 2026-07-24
 
 ### Changed
