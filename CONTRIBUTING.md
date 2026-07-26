@@ -29,7 +29,7 @@ Build a Mod Portal–ready ZIP:
 # → dist/SpidertronHunter_<version>.zip
 ```
 
-The archive must contain a single top-level folder `SpidertronHunter_<version>/`.
+Packaging generates Factorio `changelog.txt` from `CHANGELOG.md` and includes it in the archive. The archive must contain a single top-level folder `SpidertronHunter_<version>/`.
 
 ## Release process
 

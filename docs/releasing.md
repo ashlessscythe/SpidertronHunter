@@ -5,7 +5,7 @@ Maintainer guide for publishing a new version.
 ## Steps
 
 1. **Update `info.json` version** to the new semver (e.g. `0.2.0`).
-2. **Update the changelog** in [`CHANGELOG.md`](../CHANGELOG.md) with user-facing notes for this version.
+2. **Update the changelog** in [`CHANGELOG.md`](../CHANGELOG.md) with user-facing notes for this version. Packaging generates Factorio `changelog.txt` from this file and includes it in the ZIP.
 3. **Commit** the version bump and changelog (and any other release changes).
 4. **Create a tag** matching the version: `git tag vX.Y.Z` (example: `git tag v0.2.0`).
 5. **Push commits and the tag**:

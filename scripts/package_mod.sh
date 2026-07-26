@@ -12,6 +12,9 @@ FOLDER="${NAME}_${VERSION}"
 ZIP="${FOLDER}.zip"
 OUT_DIR="${1:-dist}"
 
+# Factorio in-game / Mod Portal changelog (generated from CHANGELOG.md)
+python3 scripts/generate_changelog.py -i CHANGELOG.md -o changelog.txt
+
 rm -rf "${OUT_DIR}/${FOLDER}" "${OUT_DIR}/${ZIP}"
 mkdir -p "${OUT_DIR}/${FOLDER}"
 
@@ -19,9 +22,9 @@ should_exclude() {
   local rel="$1"
   case "${rel}" in
     .git|.git/*|.github|.github/*|tests|tests/*|docs|docs/*|dist|dist/*|media|media/*) return 0 ;;
-    .gitattributes|.gitignore|CONTRIBUTING.md) return 0 ;;
+    .gitattributes|.gitignore|CONTRIBUTING.md|CHANGELOG.md) return 0 ;;
     # Maintainer scripts / binaries — Mod Portal rejects executables; not needed in-game
-    *.sh|*.ps1|*.py|scripts/package_mod.sh) return 0 ;;
+    *.sh|*.ps1|*.py|scripts/package_mod.sh|scripts/generate_changelog.py) return 0 ;;
     graphics/shortcut/hunter-source.png) return 0 ;;
     *.zip|*.exe|*.dll|*.so|*.dylib|*.bat|*.cmd|*.com) return 0 ;;
   esac
@@ -35,8 +38,8 @@ while IFS= read -r -d '' path; do
   fi
   dest="${OUT_DIR}/${FOLDER}/${rel}"
   mkdir -p "$(dirname "${dest}")"
-  # Copy without preserving mode so the execute bit never lands in the portal zip
-  cp --no-preserve=mode "${path}" "${dest}"
+  # Copy then clear execute bit so Mod Portal never sees executable modes
+  cp "${path}" "${dest}"
   chmod a-x "${dest}"
 done < <(find . -type f -print0)
 

@@ -113,6 +113,11 @@ jobs:
             exit 1
           fi
 
+          if ! unzip -Z1 "${ZIP}" | grep -qxF "${EXPECTED_PREFIX}changelog.txt"; then
+            echo "Missing ${EXPECTED_PREFIX}changelog.txt inside archive"
+            exit 1
+          fi
+
           # Mod Portal rejects packages that contain executable files (or common binary/script names).
           BAD_NAMES="$(unzip -Z1 "${ZIP}" | grep -Ei '\.(sh|ps1|py|exe|dll|so|dylib|bat|cmd|com)$' || true)"
           if [[ -n "${BAD_NAMES}" ]]; then
