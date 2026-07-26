@@ -196,6 +196,12 @@ schedules are not flipped to auto. Patrols stays an optional `?` dependency.
 grouped by `entity_label` (fallback: prototype name). Toolbar / `Ctrl+Shift+M`
 opens the window; pin keeps it open across remotes and spider GUIs.
 
+While open, create/destroy/rename/color/surface-change (and AI enable/disable)
+set a dirty flag only when at least one manager window is open; the existing
+`on_nth_tick(1)` path flushes by rebuilding open windows once per tick. Space
+platform build/mine handlers register only when `script.feature_flags.space_travel`
+is on. Event ids are gated so the same codebase runs on Factorio 2.0 and 2.1.
+
 Group actions call into `scripts/ai.lua`:
 
 - `follow_player` — cancel pathing, WAITING with `wait_reason = "follow-player"`,

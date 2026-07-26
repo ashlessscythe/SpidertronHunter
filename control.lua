@@ -36,6 +36,7 @@ local function register_nth_tick(interval)
 
   script.on_nth_tick(1, function()
     pathfinder.on_tick_reset_budget()
+    manager_gui.flush_dirty()
   end)
 
   script.on_nth_tick(interval, function()
@@ -46,10 +47,13 @@ end
 script.on_init(function()
   persistence.init_storage()
   settings_mod.refresh()
+  manager_gui.reset_tracking()
   register_nth_tick(settings_mod.get().scan_interval)
 end)
 
 script.on_load(function()
+  -- Must not write storage here (save/load + MP safety). GUI open-count is
+  -- reconciled in manager_gui.flush_dirty after load (custom GUIs are not saved).
   local interval = (storage.settings_cache and storage.settings_cache.scan_interval) or 60
   register_nth_tick(interval)
 end)
@@ -58,6 +62,7 @@ script.on_configuration_changed(function()
   persistence.init_storage()
   -- Versioned migrations/*.lua also run; this catches missing tables on reload.
   settings_mod.refresh()
+  manager_gui.reset_tracking()
   register_nth_tick(settings_mod.get().scan_interval)
 end)
 
@@ -106,14 +111,20 @@ end)
 
 script.on_event(defines.events.on_entity_died, function(event)
   local entity = event.entity
-  if entity and entity.valid then
-    targeting.remove_entity(entity)
+  if not entity or not entity.valid then
+    return
   end
+  if entity.type == "spider-vehicle" then
+    manager_gui.mark_dirty()
+    return
+  end
+  targeting.remove_entity(entity)
 end, {
   { filter = "type", type = "unit-spawner" },
   { filter = "type", type = "unit" },
   { filter = "type", type = "turret" },
   { filter = "type", type = "spider-unit" },
+  { filter = "type", type = "spider-vehicle" },
 })
 
 -- Debounce: associated_control_input can fire both the custom-input event and
@@ -181,6 +192,64 @@ end)
 
 script.on_event(defines.events.on_gui_selection_state_changed, gui.on_gui_selection_state_changed)
 
+--- Register an event only when the id exists (2.0 / 2.1 single-codebase).
+--- @param event_id defines.events|uint|string|nil
+--- @param handler fun(event: EventData)
+--- @param filters EventFilter[]?
+local function on_event(event_id, handler, filters)
+  if event_id then
+    script.on_event(event_id, handler, filters)
+  end
+end
+
+local SPIDER_FILTER = { { filter = "type", type = "spider-vehicle" } }
+
+--- @param _event EventData.on_built_entity|EventData.on_robot_built_entity|EventData.on_player_mined_entity|EventData.on_robot_mined_entity|EventData.script_raised_built|EventData.script_raised_destroy|EventData.script_raised_revive|EventData.on_entity_cloned|EventData.on_space_platform_built_entity|EventData.on_space_platform_mined_entity
+local function mark_manager_spider_event(_event)
+  manager_gui.mark_dirty()
+end
+
+on_event(defines.events.on_built_entity, mark_manager_spider_event, SPIDER_FILTER)
+on_event(defines.events.on_robot_built_entity, mark_manager_spider_event, SPIDER_FILTER)
+on_event(defines.events.on_player_mined_entity, mark_manager_spider_event, SPIDER_FILTER)
+on_event(defines.events.on_robot_mined_entity, mark_manager_spider_event, SPIDER_FILTER)
+on_event(defines.events.script_raised_built, mark_manager_spider_event, SPIDER_FILTER)
+on_event(defines.events.script_raised_revive, mark_manager_spider_event, SPIDER_FILTER)
+on_event(defines.events.script_raised_destroy, mark_manager_spider_event, SPIDER_FILTER)
+on_event(defines.events.on_entity_cloned, mark_manager_spider_event, SPIDER_FILTER)
+
+if script.feature_flags and script.feature_flags.space_travel then
+  on_event(defines.events.on_space_platform_built_entity, mark_manager_spider_event, SPIDER_FILTER)
+  on_event(defines.events.on_space_platform_mined_entity, mark_manager_spider_event, SPIDER_FILTER)
+end
+
+--- @param event EventData.on_entity_renamed
+local function on_entity_renamed(event)
+  local entity = event.entity
+  if entity and entity.valid and entity.type == "spider-vehicle" then
+    manager_gui.mark_dirty()
+  end
+end
+on_event(defines.events.on_entity_renamed, on_entity_renamed)
+
+--- @param event EventData.on_entity_color_changed
+local function on_entity_color_changed(event)
+  local entity = event.entity
+  if entity and entity.valid and entity.type == "spider-vehicle" then
+    manager_gui.mark_dirty()
+  end
+end
+on_event(defines.events.on_entity_color_changed, on_entity_color_changed)
+
+--- @param event EventData.on_player_changed_surface
+local function on_player_changed_surface(event)
+  local player = game.get_player(event.player_index)
+  if player and player.valid and player.gui.screen[manager_gui.FRAME_NAME] then
+    manager_gui.mark_dirty()
+  end
+end
+on_event(defines.events.on_player_changed_surface, on_player_changed_surface)
+
 -- Soft-compat: remap when another mod replaces a spidertron entity.
 if prototypes.custom_event["on_spidertron_replaced"] then
   script.on_event("on_spidertron_replaced", function(event)
@@ -191,5 +260,6 @@ if prototypes.custom_event["on_spidertron_replaced"] then
     elseif event.unit_number and new and new.valid then
       persistence.remap_spidertron(event.unit_number, new)
     end
+    manager_gui.mark_dirty()
   end)
 end

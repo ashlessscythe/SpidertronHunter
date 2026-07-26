@@ -124,13 +124,57 @@ local function remember_location(player)
   end
 end
 
+--- @return integer
+local function open_count()
+  return storage.manager_open_count or 0
+end
+
+--- @param delta integer
+local function adjust_open_count(delta)
+  storage.manager_open_count = math.max(0, open_count() + delta)
+end
+
 --- @param player LuaPlayer
-local function destroy_gui(player)
+--- @param counting boolean? when true, decrement open count if a window was destroyed
+local function destroy_gui(player, counting)
   remember_location(player)
   local frame = player.gui.screen[FRAME_NAME]
   if frame and frame.valid then
     frame.destroy()
+    if counting then
+      adjust_open_count(-1)
+    end
   end
+end
+
+--- Mark the fleet manager for a deferred rebuild (no-op if no window is open).
+function M.mark_dirty()
+  if open_count() > 0 then
+    storage.manager_dirty = true
+  end
+end
+
+--- Rebuild any open manager windows if marked dirty. Call from tick-1.
+--- Also reconciles open_count (custom GUIs are not saved; count can be stale after load).
+function M.flush_dirty()
+  if not storage.manager_dirty then
+    return
+  end
+  storage.manager_dirty = false
+  local n = 0
+  for _, player in pairs(game.players) do
+    if player.valid and player.gui.screen[FRAME_NAME] then
+      n = n + 1
+      M.open(player, true)
+    end
+  end
+  storage.manager_open_count = n
+end
+
+--- Reset counters (on_init / on_configuration_changed only — never on_load).
+function M.reset_tracking()
+  storage.manager_open_count = 0
+  storage.manager_dirty = false
 end
 
 --- @param gui LuaGuiElement
@@ -245,15 +289,10 @@ function M.open(player, rebuild)
   if not player or not player.valid then
     return
   end
-  if not rebuild then
-    destroy_gui(player)
-  else
-    remember_location(player)
-    local existing = player.gui.screen[FRAME_NAME]
-    if existing and existing.valid then
-      existing.destroy()
-    end
-  end
+  local existing = player.gui.screen[FRAME_NAME]
+  local had_window = existing and existing.valid
+  -- Rebuild/replace without adjusting open count; count is bumped only on first open.
+  destroy_gui(player, false)
 
   local frame = player.gui.screen.add({
     type = "frame",
@@ -300,6 +339,10 @@ function M.open(player, rebuild)
     end
   end
 
+  if not had_window then
+    adjust_open_count(1)
+  end
+
   -- Pinned windows stay up when opening entity GUIs / Esc elsewhere.
   if not is_pinned(player.index) then
     player.opened = frame
@@ -313,7 +356,7 @@ function M.close(player)
   if not player or not player.valid then
     return
   end
-  destroy_gui(player)
+  destroy_gui(player, true)
 end
 
 --- @param player LuaPlayer
@@ -516,6 +559,7 @@ function M.on_gui_closed(event)
     storage.manager_window_position = event.element.location
   end
   event.element.destroy()
+  adjust_open_count(-1)
 end
 
 M.FRAME_NAME = FRAME_NAME

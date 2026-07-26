@@ -25,6 +25,13 @@ local function is_scout(ai)
   return ai ~= nil and ai.role == "scout"
 end
 
+--- Inline dirty flag (cannot require manager_gui — it requires ai; Factorio forbids runtime require).
+local function mark_manager_dirty()
+  if (storage.manager_open_count or 0) > 0 then
+    storage.manager_dirty = true
+  end
+end
+
 --- Abort Scout if ammo / active-defense was loaded mid-run.
 --- @param ai table
 --- @return boolean aborted
@@ -261,6 +268,7 @@ function M.enable(spidertron, player)
     util.flying_text(player, { "sh.enabled" }, spidertron.position)
   end
   shortcut.sync_all()
+  mark_manager_dirty()
   return true
 end
 
@@ -338,6 +346,7 @@ function M.enable_scout(spidertron, player)
     util.flying_text(player, { "sh.scout-enabled" }, spidertron.position)
   end
   shortcut.sync_all()
+  mark_manager_dirty()
   return true
 end
 
@@ -508,6 +517,7 @@ function M.disable(spidertron, player)
     util.flying_text(player, { "sh.disabled" }, spidertron.position)
   end
   shortcut.sync_all()
+  mark_manager_dirty()
 end
 
 --- @param spidertron LuaEntity
