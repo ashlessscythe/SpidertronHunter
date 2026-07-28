@@ -29,6 +29,15 @@ data:extend({
     action = "lua",
   },
   {
+    type = "custom-input",
+    name = "sh-use-alt-spidertron-remote",
+    key_sequence = "CONTROL + mouse-button-2",
+    controller_key_sequence = "controller-lefttrigger + controller-righttrigger + controller-a",
+    consuming = "none",
+    action = "lua",
+    order = "a-b",
+  },
+  {
     type = "shortcut",
     name = "sh-open-manager",
     order = "e[spidertron]-m[manager]",

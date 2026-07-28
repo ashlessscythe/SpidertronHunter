@@ -1129,6 +1129,62 @@ function M.on_spider_command_completed(spidertron)
   end
 end
 
+--- Lake-aware go-to for scout Ctrl+right-click (same pathfinder hunters use).
+--- @param spidertron LuaEntity
+--- @param position MapPosition?
+--- @param player LuaPlayer?
+function M.on_alt_remote(spidertron, position, player)
+  local ai = persistence.get_ai_for_entity(spidertron)
+  if not ai or ai.state == States.IDLE or not is_scout(ai) then
+    return
+  end
+  if not position then
+    return
+  end
+
+  cancel_ai_pathing(ai)
+  release_claim(ai)
+  if spidertron.follow_target then
+    spidertron.follow_target = nil
+  end
+
+  local using_scout_remote = scout.holding_scout_remote(player)
+  if using_scout_remote then
+    -- Prepend so arrival pops the destination we are traveling to now.
+    ai.waypoints = ai.waypoints or {}
+    table.insert(ai.waypoints, 1, { x = position.x, y = position.y })
+    if player then
+      util.flying_text(player, { "sh.scout-waypoint-added" }, spidertron.position)
+    end
+  else
+    scout.set_focus(ai, position)
+    if player then
+      util.flying_text(player, { "sh.scout-focus-set" }, spidertron.position)
+    end
+  end
+
+  local goal = scout.ensure_walkable_goal(ai, spidertron, position)
+  if not goal then
+    if player then
+      util.flying_text(player, { "no-path" }, position)
+    end
+    States.transition(ai, States.SCOUT_EXPLORE)
+    return
+  end
+
+  ai.scout_goal = goal
+  ai.scout_goal_kind = using_scout_remote and "waypoint" or "focus"
+  ai.scout_goal_set_tick = game.tick
+  ai.player_goal = nil
+  ai.wait_reason = nil
+
+  if ai.state == States.MOVING then
+    movement.go_to(spidertron, goal, true)
+  else
+    States.transition(ai, States.MOVING)
+  end
+end
+
 --- Player remote command. Scout remotes append waypoints; vanilla remote sets focus.
 --- @param spidertron LuaEntity
 --- @param position MapPosition?

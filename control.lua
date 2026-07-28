@@ -109,6 +109,30 @@ script.on_event(defines.events.on_player_used_spidertron_remote, function(event)
   end
 end)
 
+-- Ctrl+right-click: lake-aware path for scouts (Hunter pathfinder).
+script.on_event("sh-use-alt-spidertron-remote", function(event)
+  local player = game.get_player(event.player_index)
+  if not player or not player.valid or not player.spidertron_remote_selection then
+    return
+  end
+  local cursor = player.cursor_stack
+  if not cursor or not cursor.valid_for_read then
+    return
+  end
+  if cursor.type ~= "spidertron-remote" or cursor.name == "sp-spidertron-patrol-remote" then
+    return
+  end
+  local position = event.cursor_position
+  if not position then
+    return
+  end
+  for _, spidertron in pairs(player.spidertron_remote_selection) do
+    if spidertron and spidertron.valid then
+      ai.on_alt_remote(spidertron, position, player)
+    end
+  end
+end)
+
 script.on_event(defines.events.on_entity_died, function(event)
   local entity = event.entity
   if not entity or not entity.valid then
