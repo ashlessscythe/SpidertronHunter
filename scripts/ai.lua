@@ -706,6 +706,11 @@ States.register(States.MOVING, {
       ai.keep_player_destination = nil
       return
     end
+    -- Ctrl+RMB ground: lake-aware path to player_goal (pathfinder rejects WAITING).
+    if ai.player_goal and not (ai.target_entity and ai.target_entity.valid) then
+      movement.go_to(spidertron, ai.player_goal, true)
+      return
+    end
     local goal = ai.target_pos
     if ai.target_entity and ai.target_entity.valid then
       goal = { x = ai.target_entity.position.x, y = ai.target_entity.position.y }
@@ -777,6 +782,23 @@ States.register(States.MOVING, {
     end
 
     local target = ai.target_entity
+    if (not target or not target.valid) and ai.player_goal then
+      local goal = ai.player_goal
+      if movement.is_near(spidertron, goal, ARRIVAL_RADIUS) then
+        ai.player_goal = nil
+        movement.clear(spidertron)
+        return States.SEARCH
+      end
+      if not spidertron.autopilot_destination and not spidertron.follow_target then
+        if game.tick - ai.state_entered_tick > 120 then
+          movement.go_to(spidertron, goal, true)
+        end
+      else
+        pathfinder.repath_if_stuck(spidertron, goal)
+      end
+      return
+    end
+
     if not target or not target.valid then
       release_claim(ai)
       return States.SEARCH
@@ -1129,57 +1151,94 @@ function M.on_spider_command_completed(spidertron)
   end
 end
 
---- Lake-aware go-to for scout Ctrl+right-click (same pathfinder hunters use).
+--- Lake-aware go-to for Ctrl+right-click (hunters and scouts).
 --- @param spidertron LuaEntity
 --- @param position MapPosition?
 --- @param player LuaPlayer?
 function M.on_alt_remote(spidertron, position, player)
   local ai = persistence.get_ai_for_entity(spidertron)
-  if not ai or ai.state == States.IDLE or not is_scout(ai) then
+  if not ai or ai.state == States.IDLE then
     return
   end
   if not position then
     return
   end
 
+  if is_scout(ai) then
+    cancel_ai_pathing(ai)
+    release_claim(ai)
+    if spidertron.follow_target then
+      spidertron.follow_target = nil
+    end
+
+    local using_scout_remote = scout.holding_scout_remote(player)
+    if using_scout_remote then
+      -- Prepend so arrival pops the destination we are traveling to now.
+      ai.waypoints = ai.waypoints or {}
+      table.insert(ai.waypoints, 1, { x = position.x, y = position.y })
+      if player then
+        util.flying_text(player, { "sh.scout-waypoint-added" }, spidertron.position)
+      end
+    else
+      scout.set_focus(ai, position)
+      if player then
+        util.flying_text(player, { "sh.scout-focus-set" }, spidertron.position)
+      end
+    end
+
+    local goal = scout.ensure_walkable_goal(ai, spidertron, position)
+    if not goal then
+      if player then
+        util.flying_text(player, { "no-path" }, position)
+      end
+      States.transition(ai, States.SCOUT_EXPLORE)
+      return
+    end
+
+    ai.scout_goal = goal
+    ai.scout_goal_kind = using_scout_remote and "waypoint" or "focus"
+    ai.scout_goal_set_tick = game.tick
+    ai.player_goal = nil
+    ai.wait_reason = nil
+
+    if ai.state == States.MOVING then
+      movement.go_to(spidertron, goal, true)
+    else
+      States.transition(ai, States.MOVING)
+    end
+    return
+  end
+
+  -- Hunter: lake-aware path (plain RMB keeps vanilla straight autopilot).
   cancel_ai_pathing(ai)
   release_claim(ai)
   if spidertron.follow_target then
     spidertron.follow_target = nil
   end
 
-  local using_scout_remote = scout.holding_scout_remote(player)
-  if using_scout_remote then
-    -- Prepend so arrival pops the destination we are traveling to now.
-    ai.waypoints = ai.waypoints or {}
-    table.insert(ai.waypoints, 1, { x = position.x, y = position.y })
-    if player then
-      util.flying_text(player, { "sh.scout-waypoint-added" }, spidertron.position)
-    end
-  else
-    scout.set_focus(ai, position)
-    if player then
-      util.flying_text(player, { "sh.scout-focus-set" }, spidertron.position)
-    end
+  local enemy = nil
+  if spidertron.surface then
+    enemy = enemy_at_click(spidertron.surface, position, spidertron.force)
   end
 
-  local goal = scout.ensure_walkable_goal(ai, spidertron, position)
-  if not goal then
-    if player then
-      util.flying_text(player, { "no-path" }, position)
+  if enemy then
+    claim_target(ai, enemy)
+    ai.keep_player_destination = nil
+    ai.player_goal = nil
+    ai.wait_reason = nil
+    if ai.state == States.MOVING then
+      movement.go_to(spidertron, ai.target_pos, true)
+    else
+      States.transition(ai, States.MOVING)
     end
-    States.transition(ai, States.SCOUT_EXPLORE)
     return
   end
 
-  ai.scout_goal = goal
-  ai.scout_goal_kind = using_scout_remote and "waypoint" or "focus"
-  ai.scout_goal_set_tick = game.tick
-  ai.player_goal = nil
+  ai.player_goal = { x = position.x, y = position.y }
+  ai.keep_player_destination = nil
   ai.wait_reason = nil
-
   if ai.state == States.MOVING then
-    movement.go_to(spidertron, goal, true)
+    movement.go_to(spidertron, ai.player_goal, true)
   else
     States.transition(ai, States.MOVING)
   end

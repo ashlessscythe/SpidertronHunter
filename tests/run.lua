@@ -1054,6 +1054,136 @@ harness.run("migration files exist for schema versions", function()
 end)
 
 ---------------------------------------------------------------------------
+-- ai Ctrl+RMB lake-aware (on_alt_remote)
+---------------------------------------------------------------------------
+
+local movement = require("scripts.movement")
+local persistence = require("scripts.persistence")
+local ai_mod = require("scripts.ai")
+
+harness.run("ai.on_alt_remote hunter ground sets player_goal MOVING", function()
+  schema.ensure_storage()
+  storage.settings_cache = settings_mod.DEFAULTS
+  storage.spiders = {}
+  storage.destroy_regs = {}
+  storage.path_statuses = {}
+  storage.path_queue = {}
+  storage.target_claims = {}
+  game.tick = 100
+
+  local go_calls = {}
+  local orig_go_to = movement.go_to
+  movement.go_to = function(_spider, goal, lake_aware)
+    go_calls[#go_calls + 1] = { x = goal.x, y = goal.y, lake = lake_aware }
+  end
+
+  local spider = {
+    valid = true,
+    type = "spider-vehicle",
+    name = "spidertron",
+    unit_number = 42,
+    position = { x = 0, y = 0 },
+    surface_index = 1,
+    surface = {
+      find_nearest_enemy = function()
+        return nil
+      end,
+      find_entities_filtered = function()
+        return {}
+      end,
+    },
+    force = {},
+    follow_target = nil,
+  }
+  local ai = persistence.create_ai(spider)
+  ai.state = States.PATROL
+  ai.role = "hunter"
+
+  ai_mod.on_alt_remote(spider, { x = 100, y = 50 }, nil)
+
+  harness.assert_eq(ai.state, States.MOVING)
+  harness.assert_eq(ai.player_goal.x, 100)
+  harness.assert_eq(ai.player_goal.y, 50)
+  harness.assert_eq(ai.wait_reason, nil)
+  harness.assert_eq(ai.keep_player_destination, nil)
+  harness.assert_eq(#go_calls, 1)
+  harness.assert_eq(go_calls[1].x, 100)
+  harness.assert_eq(go_calls[1].lake, true)
+
+  movement.go_to = orig_go_to
+end)
+
+harness.run("ai.on_alt_remote idle no-op", function()
+  schema.ensure_storage()
+  storage.settings_cache = settings_mod.DEFAULTS
+  storage.spiders = {}
+  storage.destroy_regs = {}
+  game.tick = 200
+
+  local spider = {
+    valid = true,
+    type = "spider-vehicle",
+    name = "spidertron",
+    unit_number = 43,
+    position = { x = 0, y = 0 },
+    surface_index = 1,
+    surface = {},
+    force = {},
+  }
+  local ai = persistence.create_ai(spider)
+  ai.state = States.IDLE
+  ai.role = "hunter"
+
+  ai_mod.on_alt_remote(spider, { x = 10, y = 20 }, nil)
+
+  harness.assert_eq(ai.state, States.IDLE)
+  harness.assert_eq(ai.player_goal, nil)
+end)
+
+harness.run("ai MOVING update completes hunter player_goal to SEARCH", function()
+  schema.ensure_storage()
+  storage.settings_cache = settings_mod.DEFAULTS
+  storage.spiders = {}
+  storage.destroy_regs = {}
+  storage.enemy_cache = {}
+  game.tick = 300
+
+  local spider = {
+    valid = true,
+    type = "spider-vehicle",
+    name = "spidertron",
+    unit_number = 44,
+    position = { x = 100, y = 50 },
+    surface_index = 1,
+    surface = {
+      find_nearest_enemy = function()
+        return nil
+      end,
+      find_entities_filtered = function()
+        return {}
+      end,
+    },
+    force = {},
+    health = 1000,
+    max_health = 1000,
+    autopilot_destination = nil,
+    follow_target = nil,
+  }
+  local ai = persistence.create_ai(spider)
+  ai.state = States.MOVING
+  ai.state_entered_tick = 300
+  ai.role = "hunter"
+  ai.player_goal = { x = 100, y = 50 }
+  ai.home = { surface_index = 1, x = 0, y = 0 }
+
+  States.update(ai)
+
+  -- Arrival clears player_goal and enters SEARCH; think chains SEARCH→PATROL when idle.
+  harness.assert_eq(ai.player_goal, nil)
+  harness.assert_true(ai.state == States.SEARCH or ai.state == States.PATROL)
+end)
+
+---------------------------------------------------------------------------
 
 if not harness.summary() then
   os.exit(1)

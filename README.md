@@ -40,13 +40,14 @@ Autonomous Spidertron AI for **Factorio 2.1**.
 4. Or toggle Hunter via toolbar **Toggle Spidertron Hunter** / `Ctrl+Shift+H` (enables Off spiders as Hunter; does not convert Scouts).
 5. Home is set to the spidertron's position when AI is enabled.
 6. Per-hunter combat style via the Style dropdown (Hunter mode only).
+7. **Right-click** with a remote → straight vanilla path. **Ctrl+right-click** → lake-aware path (ground: travel then hunt from there; enemy: path then fight).
 
 ### Scout controls
 
 1. Set Mode → **Scout** (or fleet manager AI **Ctrl-click** for Off members).
 2. **Vanilla spidertron remote** click → set explore **focus** (clears waypoints; runs the map-setting algorithm around that point).
 3. **Scout remote** (toolbar / `Alt+Shift+A`) click → **append waypoint**. Waypoints are visited in order (algorithm ignored until the queue is empty).
-4. **Ctrl+right-click** with a remote → lake-aware path (Scout remote adds a waypoint; vanilla remote sets focus).
+4. **Ctrl+right-click** with a remote → lake-aware path (Scout remote adds a waypoint; vanilla remote sets focus). Plain right-click does not force an immediate lake-aware path.
 5. Map settings choose the algorithm: `frontier` (nearest fog), `lawnmower`, or `spiral`.
 
 ### Fleet manager

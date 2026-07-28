@@ -2,6 +2,12 @@
 
 All notable changes to Spidertron Hunter are documented here.
 
+## [0.2.6] — 2026-07-28
+
+### Added
+
+- Hunter Ctrl+right-click with a spidertron remote: lake-aware path via the Hunter pathfinder (ground travel then hunt; enemy path then fight). Plain right-click remains straight vanilla autopilot.
+
 ## [0.2.4] — 2026-07-27
 
 ### Added

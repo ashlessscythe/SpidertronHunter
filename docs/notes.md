@@ -82,6 +82,9 @@ Fix:
   player-issued autopilot path (`keep_player_destination`).
 - Player click on empty ground → WAITING until arrival, then SEARCH in place.
 - Pathfinder aborts applying paths while WAITING / keep_player_destination.
+- Ctrl+right-click (hunters and scouts): lake-aware `movement.go_to` via MOVING
+  (not WAITING). Hunter ground sets `player_goal`; enemy claims without
+  `keep_player_destination`. AI-off is a no-op; Patrols remote is skipped.
 
 ## Remote + shortcut
 

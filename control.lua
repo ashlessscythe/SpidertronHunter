@@ -109,7 +109,7 @@ script.on_event(defines.events.on_player_used_spidertron_remote, function(event)
   end
 end)
 
--- Ctrl+right-click: lake-aware path for scouts (Hunter pathfinder).
+-- Ctrl+right-click: lake-aware path for hunters and scouts (Hunter pathfinder).
 script.on_event("sh-use-alt-spidertron-remote", function(event)
   local player = game.get_player(event.player_index)
   if not player or not player.valid or not player.spidertron_remote_selection then

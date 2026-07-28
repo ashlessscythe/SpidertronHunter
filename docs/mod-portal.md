@@ -104,6 +104,12 @@ Hunters automatically:
 - Return home for repairs and logistics
 - Optionally return to the previous battle and continue hunting
 
+### Hunter remote
+
+Right-click issues a straight vanilla autopilot path (as before).
+
+`Ctrl`+right-click uses a lake-aware path (same pathfinder as autonomous travel): ground clicks travel then resume hunting; enemy clicks path then engage.
+
 ---
 
 # Scout Mode
