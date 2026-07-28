@@ -1,6 +1,6 @@
 # Spidertron Hunter
 
-Autonomous Spidertron AI for **Factorio 2.0**.
+Autonomous Spidertron AI for **Factorio 2.1**.
 
 **Hunter** mode searches for enemies, paths around lakes, kites at range, retreats when damaged, then returns home to restock/repair.
 
@@ -24,11 +24,11 @@ Autonomous Spidertron AI for **Factorio 2.0**.
 
 ![Fleet manager group cards](media/fleet_manager.png)
 
-*Fleet manager — groups on the current surface with follow, remote, home, and AI controls.*
+*Fleet manager — groups on the current surface with follow, remote, home, AI (Ctrl-click Scout), and role counts.*
 
 ## Requirements
 
-- Factorio **2.0**
+- Factorio **2.1**
 - [Spidertron Hunter on the Mod Portal](https://mods.factorio.com/mod/SpidertronHunter)
 - Optional: [Spidertron Patrols](https://mods.factorio.com/mod/SpidertronPatrols), [Spidertron Enhancements](https://mods.factorio.com/mod/SpidertronEnhancements), Space Age
 
@@ -43,14 +43,15 @@ Autonomous Spidertron AI for **Factorio 2.0**.
 
 ### Scout controls
 
-1. Set Mode → **Scout**.
+1. Set Mode → **Scout** (or fleet manager AI **Ctrl-click** for Off members).
 2. **Vanilla spidertron remote** click → set explore **focus** (clears waypoints; runs the map-setting algorithm around that point).
 3. **Scout remote** (toolbar / `Alt+Shift+A`) click → **append waypoint**. Waypoints are visited in order (algorithm ignored until the queue is empty).
-4. Map settings choose the algorithm: `frontier` (nearest fog), `lawnmower`, or `spiral`.
+4. **Ctrl+right-click** with a remote → lake-aware path (Scout remote adds a waypoint; vanilla remote sets focus).
+5. Map settings choose the algorithm: `frontier` (nearest fog), `lawnmower`, or `spiral`.
 
-### Fleet manager (0.2.0)
+### Fleet manager
 
-Open with the **Hunter fleet** toolbar shortcut or `Ctrl+Shift+M`. Lists all spidertrons on your current surface, grouped by **entity label** (or prototype name if unlabeled).
+Open with the **Hunter fleet** toolbar shortcut or `Ctrl+Shift+M`. Lists all spidertrons on your current surface, grouped by **entity label** (or prototype name if unlabeled). Active Hunter/Scout counts appear under the group name (e.g. `2H, 1S`).
 
 Each group card:
 
@@ -61,7 +62,7 @@ Each group card:
 | Home | Go home. **Ctrl-click** = set each spider's home to its **current** position |
 | Show group | Remote-view camera to the group |
 | Settings | Opens one spidertron's GUI (Mode / Style / home) |
-| AI toggle | Same as the toolbar: enable Off as Hunter if any are off; disable if all are on (does not convert active Scouts) |
+| AI toggle | Enable Off as Hunter if any are off; disable if all are on (does not convert active Scouts). **Ctrl-click** = enable Off members as Scout (armed spiders refused) |
 | Pin (titlebar) | Keep the window open while using remotes or spider GUIs |
 
 Follow and go-home do **not** turn AI off — use the AI toggle (or Mode → Off) for that.

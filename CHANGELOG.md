@@ -2,6 +2,20 @@
 
 All notable changes to Spidertron Hunter are documented here.
 
+## [0.2.4] — 2026-07-27
+
+### Added
+
+- Fleet manager AI: **Ctrl-click** enables Off members as Scout (armed spiders refused with flying text; does not convert active Hunters). Plain click still Off→Hunter / all-on→disable.
+- Fleet manager group cards show active role counts under the name (e.g. `2H, 1S`).
+- Scout Ctrl+right-click with a spidertron remote: lake-aware path via the Hunter pathfinder (waypoint or focus depending on remote).
+
+## [0.2.3] — 2026-07-27
+
+### Changed
+
+- Targets Factorio 2.1.
+
 ## [0.2.2] — 2026-07-25
 
 ### Fixed

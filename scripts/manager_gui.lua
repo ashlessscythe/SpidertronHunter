@@ -93,6 +93,43 @@ local function group_ai_status(members)
   return any, any
 end
 
+--- @param members LuaEntity[]
+--- @return integer hunters, integer scouts
+local function group_role_counts(members)
+  local hunters = 0
+  local scouts = 0
+  for i = 1, #members do
+    local spidertron = members[i]
+    if util.is_valid_spidertron(spidertron) then
+      local role = ai.get_role(spidertron)
+      if role == "hunter" then
+        hunters = hunters + 1
+      elseif role == "scout" then
+        scouts = scouts + 1
+      end
+    end
+  end
+  return hunters, scouts
+end
+
+--- Compact helper caption like "2H, 1S"; nil when none enabled.
+--- @param hunters integer
+--- @param scouts integer
+--- @return string?
+local function role_counts_caption(hunters, scouts)
+  local parts = {}
+  if hunters > 0 then
+    parts[#parts + 1] = tostring(hunters) .. "H"
+  end
+  if scouts > 0 then
+    parts[#parts + 1] = tostring(scouts) .. "S"
+  end
+  if #parts == 0 then
+    return nil
+  end
+  return table.concat(parts, ", ")
+end
+
 --- @param parent LuaGuiElement
 --- @param action string
 --- @param tooltip LocalisedString
@@ -261,6 +298,19 @@ local function add_group_card(list, player, group_name, members)
     )
   end
 
+  local hunters, scouts = group_role_counts(members)
+  local role_caption = role_counts_caption(hunters, scouts)
+  if role_caption then
+    local roles = card.add({
+      type = "label",
+      name = "roles",
+      caption = role_caption,
+      tooltip = { "sh.manager-role-counts-tooltip" },
+    })
+    roles.style.font = "default-small"
+    roles.style.top_margin = 2
+  end
+
   local actions = card.add({ type = "flow", direction = "horizontal", name = "actions" })
   actions.style.horizontal_spacing = 2
   actions.style.top_margin = 4
@@ -425,6 +475,18 @@ local function toggle_group_ai(members, player)
   end
 end
 
+--- Enable Off spiders as Scout (leaves Hunters/Scouts alone; refuses armed).
+--- @param members LuaEntity[]
+--- @param player LuaPlayer
+local function enable_group_scouts(members, player)
+  for i = 1, #members do
+    local spidertron = members[i]
+    if util.is_valid_spidertron(spidertron) and not ai.is_enabled(spidertron) then
+      ai.enable_scout(spidertron, player)
+    end
+  end
+end
+
 --- @param event EventData.on_gui_click
 function M.on_gui_click(event)
   local element = event.element
@@ -534,7 +596,12 @@ function M.on_gui_click(event)
   end
 
   if action == BTN_AI then
-    toggle_group_ai(members, player)
+    -- Click = Off→Hunter / all-on→disable; Ctrl-click = Off→Scout only.
+    if event.control then
+      enable_group_scouts(members, player)
+    else
+      toggle_group_ai(members, player)
+    end
     M.open(player, true)
   end
 end

@@ -60,7 +60,7 @@ Designed to feel like a natural extension of vanilla gameplay, the focus is auto
 
 ![Fleet Manager](https://raw.githubusercontent.com/ashlessscythe/SpidertronHunter/public/media/fleet_manager.png)
 
-*Manage every Spidertron on the current surface from one window.*
+*Manage every Spidertron on the current surface from one window — including Ctrl-click Scout enable and Hunter/Scout counts.*
 
 ---
 
@@ -140,7 +140,7 @@ If a Scout begins zig-zagging, it is usually avoiding nearby enemies. Send a Hun
 
 Open with **Ctrl+Shift+M**.
 
-Spidertrons are grouped by entity label (or prototype name if unlabeled).
+Spidertrons are grouped by entity label (or prototype name if unlabeled). Each group card shows active Hunter/Scout counts (e.g. `2H, 1S`).
 
 Each group provides:
 
@@ -149,7 +149,7 @@ Each group provides:
 - **Home** — Return home (`Ctrl`-click sets current position as Home)
 - **Show Group** — Jump to the group using remote view
 - **Settings** — Open one Spidertron's settings
-- **AI Toggle** — Enable or disable Hunter AI
+- **AI Toggle** — Enable Off as Hunter, or disable if all are on. `Ctrl`-click enables Off members as Scout (armed spiders are refused)
 - **Pin** — Keep the window open while using remotes or Spidertron GUIs
 
 ---
@@ -162,11 +162,15 @@ Click the map to choose an exploration focus.
 
 This clears queued waypoints and begins autonomous exploration around the selected area.
 
+`Ctrl`+right-click uses a lake-aware path when setting focus.
+
 ### Scout Remote
 
 Use **Alt+Shift+A** to place Scout waypoints.
 
 Waypoints are completed in order before autonomous exploration resumes.
+
+`Ctrl`+right-click appends a waypoint with lake-aware pathing.
 
 Available exploration algorithms:
 

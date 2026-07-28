@@ -208,7 +208,9 @@ Group actions call into `scripts/ai.lua`:
   then vanilla `follow_target` on the player character (AI stays enabled).
 - `return_home` — active AI enters RETURNING; idle spiders with a home use autopilot.
 - AI toggle — same Off→Hunter / all-on→disable semantics as the toolbar (leaves
-  active Scouts alone when enabling).
+  active Scouts alone when enabling). Ctrl-click enables Off members as Scout
+  (armed spiders refused with flying text; does not convert Hunters).
+- Role counts under the group name (`2H, 1S`) show enabled Hunters/Scouts.
 - Ctrl-click Home — `set_home` per member at current position (sticky pin).
 
 Remote methods: `follow_player`, `return_home`.
