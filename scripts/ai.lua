@@ -161,6 +161,50 @@ local function check_tactical_retreat(ai)
   return nil
 end
 
+--- Return home to restock when average ammo fill drops below the configured %.
+--- @param ai table
+--- @return string? next_state
+local function check_low_ammo(ai)
+  if is_scout(ai) then
+    return nil
+  end
+  local cfg = settings_mod.get()
+  if not cfg.restock_enabled then
+    return nil
+  end
+  local threshold = cfg.restock_ammo_percent or 0
+  if threshold <= 0 then
+    return nil
+  end
+  local spidertron = ai.entity
+  if not util.is_valid_spidertron(spidertron) then
+    return nil
+  end
+  local home = ai.home
+  if home and util.distance({ x = home.x, y = home.y }, spidertron.position) <= scanner.NEAR_HOME_THRESHOLD then
+    return nil
+  end
+  if not logistics.ammo_below_threshold(spidertron, threshold, ai) then
+    return nil
+  end
+  local current, desired = logistics.ammo_counts(spidertron, ai)
+  local ratio = logistics.ratio_from_counts(current, desired)
+  release_claim(ai)
+  cancel_ai_pathing(ai)
+  ai.post_combat_since = nil
+  util.debug_log(
+    "low ammo "
+      .. string.format("%.0f", ratio * 100)
+      .. "% ("
+      .. tostring(current)
+      .. "/"
+      .. tostring(desired)
+      .. ")",
+    spidertron
+  )
+  return States.RETURNING
+end
+
 --- @param ai table
 --- @return MapPosition?
 local function retreat_origin_position(ai)
@@ -241,6 +285,7 @@ function M.enable(spidertron, player)
   cancel_ai_pathing(ai)
   ai.retreat_origin = nil
   ai.role = "hunter"
+  ai.ammo_baseline = logistics.snapshot_ammo_baseline(spidertron)
   scout.clear_waypoints(ai)
   ai.focus_pos = nil
   ai.scout_goal = nil
@@ -642,6 +687,10 @@ States.register(States.PATROL, {
     if retreat then
       return retreat
     end
+    local low_ammo = check_low_ammo(ai)
+    if low_ammo then
+      return low_ammo
+    end
     if game.tick < (ai.next_think_tick or 0) then
       return
     end
@@ -670,6 +719,10 @@ States.register(States.SEARCH, {
     local retreat = check_tactical_retreat(ai)
     if retreat then
       return retreat
+    end
+    local low_ammo = check_low_ammo(ai)
+    if low_ammo then
+      return low_ammo
     end
     local enemy = scanner.scan_for_enemy(ai)
     if enemy and claim_target(ai, enemy) then
@@ -728,6 +781,10 @@ States.register(States.MOVING, {
     local retreat = check_tactical_retreat(ai)
     if retreat then
       return retreat
+    end
+    local low_ammo = check_low_ammo(ai)
+    if low_ammo then
+      return low_ammo
     end
 
     if is_scout(ai) then
@@ -848,6 +905,10 @@ States.register(States.ATTACKING, {
     local retreat = check_tactical_retreat(ai)
     if retreat then
       return retreat
+    end
+    local low_ammo = check_low_ammo(ai)
+    if low_ammo then
+      return low_ammo
     end
 
     local target = ai.target_entity

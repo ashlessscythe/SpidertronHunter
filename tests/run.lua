@@ -128,6 +128,8 @@ harness.run("settings DEFAULTS cover combat + retreat + scout", function()
   harness.assert_eq(d.retreat_health_percent, 25)
   harness.assert_true(d.retreat_include_shields)
   harness.assert_false(d.reengage_after_retreat)
+  harness.assert_true(d.restock_enabled)
+  harness.assert_eq(d.restock_ammo_percent, 20)
   harness.assert_false(d.sticky_home_on_first_enable)
   harness.assert_eq(d.scan_interval, 60)
   harness.assert_eq(d.spiders_per_think, 8)
@@ -417,6 +419,81 @@ harness.run("tactical retreat when below threshold", function()
   harness.assert_true(should_retreat(0.2, 25))
   harness.assert_false(should_retreat(0.5, 25))
   harness.assert_false(should_retreat(0.1, 0))
+end)
+
+harness.run("low ammo return when below threshold", function()
+  local logistics = require("scripts.logistics")
+  local function should_return_for_ammo(opts)
+    if opts.scout or not opts.restock_enabled then
+      return false
+    end
+    if opts.near_home then
+      return false
+    end
+    local ratio = logistics.ratio_from_counts(opts.current, opts.desired)
+    return logistics.ratio_at_or_below_percent(ratio, opts.percent)
+  end
+  -- Request 10 rockets, 20% → return at 2 (empty stacks irrelevant).
+  harness.assert_eq(logistics.ratio_from_counts(2, 10), 0.2)
+  harness.assert_true(logistics.ratio_at_or_below_percent(0.2, 20))
+  harness.assert_false(logistics.ratio_at_or_below_percent(0.3, 20))
+  harness.assert_false(logistics.ratio_at_or_below_percent(0.0, 0))
+  harness.assert_true(should_return_for_ammo({
+    restock_enabled = true,
+    percent = 20,
+    current = 2,
+    desired = 10,
+    near_home = false,
+    scout = false,
+  }))
+  harness.assert_false(should_return_for_ammo({
+    restock_enabled = true,
+    percent = 20,
+    current = 3,
+    desired = 10,
+    near_home = false,
+    scout = false,
+  }))
+  harness.assert_false(should_return_for_ammo({
+    restock_enabled = true,
+    percent = 20,
+    current = 2,
+    desired = 10,
+    near_home = true,
+    scout = false,
+  }))
+  harness.assert_false(should_return_for_ammo({
+    restock_enabled = false,
+    percent = 20,
+    current = 0,
+    desired = 10,
+    near_home = false,
+    scout = false,
+  }))
+  harness.assert_false(should_return_for_ammo({
+    restock_enabled = true,
+    percent = 0,
+    current = 0,
+    desired = 10,
+    near_home = false,
+    scout = false,
+  }))
+  harness.assert_false(should_return_for_ammo({
+    restock_enabled = true,
+    percent = 20,
+    current = 0,
+    desired = 10,
+    near_home = false,
+    scout = true,
+  }))
+  -- Enable baseline fallback: 50 on activate, 10 left → 20%.
+  harness.assert_eq(logistics.ratio_from_counts(10, 50), 0.2)
+  -- Quality keys must distinguish legendary vs normal.
+  harness.assert_eq(logistics.ammo_request_key("rocket", "legendary"), "rocket\0legendary")
+  harness.assert_true(
+    logistics.ammo_request_key("rocket", "legendary")
+      ~= logistics.ammo_request_key("rocket", "normal")
+  )
 end)
 
 harness.run("re-engage after restock only when toggled and origin set", function()

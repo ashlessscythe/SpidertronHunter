@@ -29,6 +29,7 @@ Designed to feel like a natural extension of vanilla gameplay, the focus is auto
 
 - 🤖 Autonomous Hunter and Scout AI
 - 🏠 Automatically returns home to repair and restock
+- 🔫 Returns home when ammo runs low (configurable %)
 - 🛡️ Tactical retreat with optional re-engage
 - 🧭 Scout mode explores and discovers enemy bases
 - 👥 Fleet Manager for controlling multiple Spidertrons
@@ -101,6 +102,7 @@ Hunters automatically:
 - Fight using configurable combat styles
 - Avoid acid puddles
 - Retreat when hull or shields fall below configurable thresholds
+- Return home when ammo drops to Restock ammo % of the logistic request (default 20)
 - Return home for repairs and logistics
 - Optionally return to the previous battle and continue hunting
 
@@ -204,6 +206,8 @@ The AI simply gives idle Spidertrons useful jobs without changing their underlyi
 
 # Compatibility
 
+Requires **Factorio 2.1**. Going forward, development and releases target 2.1 only (Factorio 2.0 is not supported).
+
 Optional compatibility is included for:
 
 - Spidertron Patrols
@@ -223,6 +227,7 @@ When Hunter AI is enabled alongside Spidertron Patrols, patrol control is tempor
 - Automatic target acquisition
 - Automatic return home
 - Logistics-aware restocking
+- Low-ammo return (configurable %)
 - Repair waiting with timeout protection
 - Tactical retreat
 - Optional re-engage

@@ -2,7 +2,7 @@
 
 Autonomous Spidertron AI for **Factorio 2.1**.
 
-**Hunter** mode searches for enemies, paths around lakes, kites at range, retreats when damaged, then returns home to restock/repair.
+**Hunter** mode searches for enemies, paths around lakes, kites at range, retreats when damaged or low on ammo, then returns home to restock/repair.
 
 **Scout** mode explores and charts fog without engaging — keeps standoff from biters, feeds the shared enemy cache, then hunters can clean up.
 
@@ -28,7 +28,7 @@ Autonomous Spidertron AI for **Factorio 2.1**.
 
 ## Requirements
 
-- Factorio **2.1**
+- Factorio **2.1** only (development and releases target 2.1 going forward; 2.0 is not supported)
 - [Spidertron Hunter on the Mod Portal](https://mods.factorio.com/mod/SpidertronHunter)
 - Optional: [Spidertron Patrols](https://mods.factorio.com/mod/SpidertronPatrols), [Spidertron Enhancements](https://mods.factorio.com/mod/SpidertronEnhancements), Space Age
 
@@ -73,16 +73,17 @@ Follow and go-home do **not** turn AI off — use the AI toggle (or Mode → Off
 ### Hunter
 
 ```
-Patrol → Search → Move → Attack (kite) → linger / retreat → Return home → Restock → (optional re-engage) → Patrol
+Patrol → Search → Move → Attack (kite) → linger / retreat / low ammo → Return home → Restock → (optional re-engage) → Patrol
 ```
 
 - **Search:** bounded radius scans + shared enemy cache (not the whole map)
 - **Move:** vanilla autopilot, lake-aware via `request_path` when needed
 - **Attack:** preferred combat range; styles `hold` / `strafe` / `circle` / `flank`; acid puddle avoidance
 - **Retreat:** configurable hull/shield % threshold forces a return home
+- **Low ammo:** when on-hand ammo drops to Restock ammo % of the logistic ammo request (default 20; 0 off), return home while away from base (fallback: ammo count at enable)
 - **Re-engage:** optional; after retreat + restock, return to the retreat origin and hunt again (default off)
 - **Linger:** after a fight clears, keep scanning locally briefly (default 15s) before returning home
-- **Restock:** waits on logistics/repairs with a hard timeout (never stuck forever)
+- **Restock:** waits on logistics/repairs with a hard timeout (never stuck forever); waits until ammo requests are filled when possible
 
 ### Scout
 
@@ -106,6 +107,7 @@ All important options are **runtime-global** (Map settings → Mod settings):
 | Return home + post-combat linger | Clear an area before heading home (default linger 15s) |
 | Sticky home on first enable | Keep home across disable/enable until cleared (default off) |
 | Tactical retreat health % + shields | Bail out before dying |
+| Restock ammo % | Return home when ammo is low vs logistic request (default 20; 0 off) |
 | Re-engage after retreat | Return to retreat coordinates after restock (default off) |
 | Combat range / style / acid avoid | Kiting behavior |
 | Restock / repair / max wait | Home logistics |

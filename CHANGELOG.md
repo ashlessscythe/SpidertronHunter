@@ -2,6 +2,12 @@
 
 All notable changes to Spidertron Hunter are documented here.
 
+## [0.2.7] — 2026-08-10
+
+### Added
+
+- Hunters return home to restock when on-hand ammo drops to **Restock ammo %** of their logistic ammo request (default 20; 0 disables). Counts quality-specific requests (e.g. legendary rockets). Falls back to ammo count at enable if there is no ammo request. At-home restock waits until requests are filled (with timeout).
+
 ## [0.2.6] — 2026-07-28
 
 ### Added

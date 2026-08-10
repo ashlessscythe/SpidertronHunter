@@ -89,6 +89,15 @@ data:extend({
     order = "b-b",
   },
   {
+    type = "int-setting",
+    name = "sh-restock-ammo-percent",
+    setting_type = "runtime-global",
+    default_value = 20,
+    minimum_value = 0,
+    maximum_value = 100,
+    order = "b-b1",
+  },
+  {
     type = "bool-setting",
     name = "sh-repair-enabled",
     setting_type = "runtime-global",
