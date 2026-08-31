@@ -42,6 +42,21 @@ local function opened_spidertron(player)
   return nil
 end
 
+--- @param parent LuaGuiElement
+--- @param caption LocalisedString
+--- @return LuaGuiElement row
+local function add_row(parent, caption)
+  local row = parent.add({
+    type = "flow",
+    direction = "horizontal",
+  })
+  row.add({
+    type = "label",
+    caption = caption,
+  })
+  return row
+end
+
 --- @param player LuaPlayer
 --- @param spidertron LuaEntity
 local function build_gui(player, spidertron)
@@ -52,10 +67,12 @@ local function build_gui(player, spidertron)
   end
 
   local role = ai.get_role(spidertron)
+  local tags = { sh_unit_number = spidertron.unit_number }
+
   local frame = relative.add({
     type = "frame",
     name = FRAME_NAME,
-    direction = "horizontal",
+    direction = "vertical",
     anchor = {
       gui = defines.relative_gui_type.spider_vehicle_gui,
       position = defines.relative_gui_position.right,
@@ -69,73 +86,78 @@ local function build_gui(player, spidertron)
     style = "frame_title",
   })
 
-  frame.add({
-    type = "label",
-    caption = { "sh.mode-label" },
+  local body = frame.add({
+    type = "flow",
+    direction = "vertical",
+    name = "sh-gui-body",
   })
 
   local mode_items = {}
   for i = 1, #MODE_ORDER do
     mode_items[i] = { "sh.mode-" .. MODE_ORDER[i] }
   end
-  frame.add({
+  local mode_row = add_row(body, { "sh.mode-label" })
+  mode_row.add({
     type = "drop-down",
     name = MODE_DROPDOWN,
     items = mode_items,
     selected_index = mode_index(role),
     tooltip = { "sh.mode-tooltip" },
-    tags = { sh_unit_number = spidertron.unit_number },
+    tags = tags,
   })
 
-  frame.add({
+  if role == "hunter" then
+    local style_items = {}
+    for i = 1, #STYLE_ORDER do
+      style_items[i] = { "sh.combat-style-" .. STYLE_ORDER[i] }
+    end
+    local current = ai.get_combat_style(spidertron)
+    local style_row = add_row(body, { "sh.combat-style-label" })
+    style_row.add({
+      type = "drop-down",
+      name = STYLE_DROPDOWN,
+      items = style_items,
+      selected_index = style_index(current),
+      tooltip = { "sh.combat-style-tooltip" },
+      tags = tags,
+    })
+  end
+
+  local home_row = body.add({
+    type = "flow",
+    direction = "horizontal",
+    name = "sh-home-row",
+  })
+  home_row.add({
     type = "button",
     name = SET_HOME_BUTTON,
     caption = { "sh.set-home-button" },
     tooltip = { "sh.set-home-tooltip" },
     style = "button",
-    tags = { sh_unit_number = spidertron.unit_number },
+    tags = tags,
   })
-
-  frame.add({
+  home_row.add({
     type = "button",
     name = CLEAR_HOME_BUTTON,
     caption = { "sh.clear-home-button" },
     tooltip = { "sh.clear-home-tooltip" },
     style = "button",
-    tags = { sh_unit_number = spidertron.unit_number },
+    tags = tags,
   })
 
-  if role == "hunter" then
-    frame.add({
-      type = "label",
-      caption = { "sh.combat-style-label" },
-    })
-
-    local items = {}
-    for i = 1, #STYLE_ORDER do
-      items[i] = { "sh.combat-style-" .. STYLE_ORDER[i] }
-    end
-    local current = ai.get_combat_style(spidertron)
-    frame.add({
-      type = "drop-down",
-      name = STYLE_DROPDOWN,
-      items = items,
-      selected_index = style_index(current),
-      tooltip = { "sh.combat-style-tooltip" },
-      tags = { sh_unit_number = spidertron.unit_number },
-    })
-  end
-
   local ai_data = persistence.get_ai_for_entity(spidertron)
+  local status_caption
   if role ~= "off" and ai_data and ai_data.state then
-    frame.add({
-      type = "label",
-      caption = { "sh.state-" .. ai_data.state },
-    })
+    status_caption = { "sh.state-" .. ai_data.state }
   elseif role == "off" then
-    frame.add({
+    status_caption = { "sh.disabled" }
+  end
+  if status_caption then
+    body.add({
       type = "label",
-      caption = { "sh.disabled" },
+      caption = status_caption,
+      style = "caption_label",
+      name = "sh-status-label",
     })
   end
 end

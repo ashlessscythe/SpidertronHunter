@@ -15,6 +15,44 @@ local STUCK_MOVE_EPS = 1.5
 --- How far to search for land when the raw goal sits on water.
 local WALKABLE_SEARCH_RADIUS = 32
 
+local function ensure_path_only_table()
+  storage.path_only = storage.path_only or {}
+end
+
+--- @param unit_number integer
+--- @return table?
+local function get_path_only(unit_number)
+  if not storage.path_only then
+    return nil
+  end
+  return storage.path_only[unit_number]
+end
+
+--- @param spidertron LuaEntity
+--- @return table? ai
+--- @return table? path_only
+--- @return boolean standalone
+local function get_path_context(spidertron)
+  local unit_number = spidertron.unit_number
+  local ai = storage.spiders and storage.spiders[unit_number]
+  local path_only = get_path_only(unit_number)
+  return ai, path_only, path_only ~= nil
+end
+
+--- @param unit_number integer
+--- @return LuaEntity?
+local function resolve_spidertron(unit_number)
+  local ai = storage.spiders and storage.spiders[unit_number]
+  if ai and ai.entity and ai.entity.valid then
+    return ai.entity
+  end
+  local path_only = get_path_only(unit_number)
+  if path_only and path_only.entity and path_only.entity.valid then
+    return path_only.entity
+  end
+  return nil
+end
+
 local function get_leg_collision_mask(spidertron)
   local legs = spidertron.get_spider_legs()
   if not legs or not legs[1] or not legs[1].valid then
@@ -180,35 +218,57 @@ function M.path_targets_for_role(role, walkable, goal)
   return goal, goal
 end
 
---- Mark the AI that pathing to this goal failed (no direct-into-water).
+--- Mark the AI or standalone path record that pathing to this goal failed.
 --- @param spidertron LuaEntity
 --- @param goal MapPosition
 local function mark_path_failed(spidertron, goal)
-  local ai = storage.spiders[spidertron.unit_number]
-  if not ai or not goal then
+  if not goal then
     return
   end
-  ai.path_failed_goal = { x = goal.x, y = goal.y }
-  ai.path_start_tick = nil
-  ai.pending_goal = nil
+  local ai, path_only = get_path_context(spidertron)
+  if ai then
+    ai.path_failed_goal = { x = goal.x, y = goal.y }
+    ai.path_start_tick = nil
+    ai.pending_goal = nil
+  end
+  if path_only then
+    path_only.pending_goal = nil
+    path_only.path_start_tick = nil
+  end
   spidertron.follow_target = nil
   spidertron.autopilot_destination = nil
 end
 
---- Mark AI as waiting on this goal (in-flight or queued).
+--- Mark pathing state as waiting on this goal (in-flight or queued).
 --- @param spidertron LuaEntity
 --- @param goal MapPosition
 --- @param start_tick integer?
 local function mark_pending(spidertron, goal, start_tick)
-  local ai = storage.spiders[spidertron.unit_number]
-  if not ai then
-    return
+  local ai, path_only = get_path_context(spidertron)
+  if ai then
+    ai.path_start_tick = start_tick
+    ai.pending_goal = { x = goal.x, y = goal.y }
+    ai.path_stuck_since = nil
+    ai.path_stuck_pos = nil
+    ai.path_failed_goal = nil
+  elseif path_only then
+    path_only.path_start_tick = start_tick
+    path_only.pending_goal = { x = goal.x, y = goal.y }
+  else
+    ensure_path_only_table()
+    storage.path_only[spidertron.unit_number] = {
+      entity = spidertron,
+      pending_goal = { x = goal.x, y = goal.y },
+      path_start_tick = start_tick,
+    }
   end
-  ai.path_start_tick = start_tick
-  ai.pending_goal = { x = goal.x, y = goal.y }
-  ai.path_stuck_since = nil
-  ai.path_stuck_pos = nil
-  ai.path_failed_goal = nil
+end
+
+--- @param unit_number integer
+local function clear_path_only(unit_number)
+  if storage.path_only then
+    storage.path_only[unit_number] = nil
+  end
 end
 
 --- Attempt to issue one path request. Does not queue.
@@ -324,9 +384,8 @@ function M.process_queue()
 
   for i = 1, #queue do
     local item = queue[i]
-    local ai = storage.spiders[item.unit_number]
-    local spidertron = ai and ai.entity
-    if not ai or not spidertron or not spidertron.valid then
+    local spidertron = resolve_spidertron(item.unit_number)
+    if not spidertron then
       -- drop
     elseif item.kind == "start" then
       local result = try_start_path(spidertron, item.goal, item.resolution or -3)
@@ -362,29 +421,35 @@ function M.repath_if_stuck(spidertron, goal)
     return false
   end
   local ai = storage.spiders[spidertron.unit_number]
-  if not ai then
+  local path_only = get_path_only(spidertron.unit_number)
+  if not ai and not path_only then
     return false
   end
-  if ai.keep_player_destination then
+  if ai and ai.keep_player_destination then
     return false
   end
 
+  local stuck_ref = ai or path_only
+
   local pos = spidertron.position
   if util.distance(pos, goal) < SHORT_HOP_DISTANCE then
-    ai.path_stuck_since = nil
-    ai.path_stuck_pos = nil
+    if stuck_ref then
+      stuck_ref.path_stuck_since = nil
+      stuck_ref.path_stuck_pos = nil
+    end
     return false
   end
 
   -- Still waiting on queued work.
   ensure_queue()
   for i = 1, #storage.path_queue do
-    if storage.path_queue[i].unit_number == ai.unit_number then
+    if storage.path_queue[i].unit_number == spidertron.unit_number then
       return false
     end
   end
   -- Still waiting on an in-flight path.
-  if ai.path_start_tick and storage.path_statuses[ai.unit_number] and storage.path_statuses[ai.unit_number][ai.path_start_tick] then
+  local path_start_tick = stuck_ref and stuck_ref.path_start_tick
+  if path_start_tick and storage.path_statuses[spidertron.unit_number] and storage.path_statuses[spidertron.unit_number][path_start_tick] then
     return false
   end
 
@@ -394,19 +459,23 @@ function M.repath_if_stuck(spidertron, goal)
     return true
   end
 
-  local stuck_pos = ai.path_stuck_pos
+  local stuck_pos = stuck_ref and stuck_ref.path_stuck_pos
   if not stuck_pos or util.distance(pos, stuck_pos) > STUCK_MOVE_EPS then
-    ai.path_stuck_pos = { x = pos.x, y = pos.y }
-    ai.path_stuck_since = game.tick
+    if stuck_ref then
+      stuck_ref.path_stuck_pos = { x = pos.x, y = pos.y }
+      stuck_ref.path_stuck_since = game.tick
+    end
     return false
   end
 
-  if game.tick - (ai.path_stuck_since or game.tick) < STUCK_TICKS then
+  if game.tick - (stuck_ref.path_stuck_since or game.tick) < STUCK_TICKS then
     return false
   end
 
-  ai.path_stuck_since = nil
-  ai.path_stuck_pos = nil
+  if stuck_ref then
+    stuck_ref.path_stuck_since = nil
+    stuck_ref.path_stuck_pos = nil
+  end
   spidertron.follow_target = nil
   spidertron.autopilot_destination = nil
   M.request_path_to(spidertron, goal)
@@ -437,15 +506,32 @@ function M.on_path_finished(event)
   end
 
   local ai = storage.spiders[unit_number]
+  local path_only = get_path_only(unit_number)
+  local standalone = path_only ~= nil
+
   -- Abort if goal superseded, AI disabled, or player has taken control.
-  if not ai or ai.state == "idle" or ai.state == "waiting" then
+  if ai and ai.state == "idle" and not standalone then
     status.finished = status.finished + 1
     if status.finished >= status.total then
       statuses[info.start_tick] = nil
     end
     return
   end
-  if ai.keep_player_destination then
+  if ai and ai.state == "waiting" and not standalone then
+    status.finished = status.finished + 1
+    if status.finished >= status.total then
+      statuses[info.start_tick] = nil
+    end
+    return
+  end
+  if not ai and not standalone then
+    status.finished = status.finished + 1
+    if status.finished >= status.total then
+      statuses[info.start_tick] = nil
+    end
+    return
+  end
+  if ai and ai.keep_player_destination then
     status.finished = status.finished + 1
     status.success = true
     if status.finished >= status.total then
@@ -453,8 +539,18 @@ function M.on_path_finished(event)
     end
     return
   end
-  if ai.pending_goal
+  if ai and ai.pending_goal
     and (ai.pending_goal.x ~= info.goal_position.x or ai.pending_goal.y ~= info.goal_position.y)
+  then
+    status.finished = status.finished + 1
+    status.success = true
+    if status.finished >= status.total then
+      statuses[info.start_tick] = nil
+    end
+    return
+  end
+  if path_only and path_only.pending_goal
+    and (path_only.pending_goal.x ~= info.goal_position.x or path_only.pending_goal.y ~= info.goal_position.y)
   then
     status.finished = status.finished + 1
     status.success = true
@@ -523,6 +619,11 @@ function M.on_path_finished(event)
         if ai then
           ai.pending_goal = { x = dest.x, y = dest.y }
           ai.path_failed_goal = nil
+        elseif path_only then
+          path_only.pending_goal = { x = dest.x, y = dest.y }
+        end
+        if standalone and not ai then
+          clear_path_only(unit_number)
         end
       end
       statuses[info.start_tick] = nil
@@ -562,6 +663,9 @@ function M.on_path_finished(event)
   if ai then
     ai.path_stuck_since = nil
     ai.path_stuck_pos = nil
+  end
+  if standalone and not ai then
+    clear_path_only(unit_number)
   end
 
   status.finished = status.finished + 1

@@ -236,3 +236,23 @@ Goals snap onto walkable land (chunk centers are often ocean); pathfinding never
 falls back to direct-into-water for scouts. Unreachable / timed-out goals (~90s)
 are blacklisted and replaced. Hunters still fall back to the raw goal when no
 walkable snap exists so re-engage / combat pathing is not blocked in crowded nests.
+
+## Standalone lake pathing (0.2.9)
+
+`scripts/path_remote.lua` issues lake-aware Ctrl+RMB paths for any eligible
+spidertron — AI on or off. `storage.path_only` tracks ephemeral goals when
+Hunter AI is disabled. `movement.go_to(..., true)` delegates here so autonomous
+and manual pathing share one code path.
+
+`prototypes/collision-mask.lua` (data-final-fixes) adds the `large_entity`
+collision layer when not already provided by another mod (e.g. Enhancements).
+Pathfinder uses it for building-aware routing. Attribution in NOTICE.
+
+`control.lua` Ctrl+RMB: `ai.on_alt_remote` when AI enabled; else
+`path_remote.go_lake_aware`. Patrols / Enhancements remain optional compat only.
+
+## Vertical spidertron GUI (0.2.9)
+
+`scripts/gui.lua` relative frame uses `direction = "vertical"` with labeled rows
+(Mode, Style when Hunter, Set/Clear home, status caption). Anchor unchanged
+(`relative_gui_position.right`).

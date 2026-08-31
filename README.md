@@ -14,9 +14,9 @@ Autonomous Spidertron AI for **Factorio 2.1**.
 
 *Multi-select activation — toggle Hunter AI on several spidertrons at once.*
 
-![Combat style dropdown in the spidertron GUI](media/combat_style_gui.png)
+![Spidertron Hunter settings panel](media/combat_style_gui.png)
 
-*Per-spidertron combat style: Hold / Strafe / Circle / Flank.*
+*Vertical panel beside the spidertron inventory: Mode, combat Style (Hold / Strafe / Circle / Flank), Set/Clear home, and AI status.*
 
 ![Scout explore paths around lakes and fog](media/scout_paths.png)
 
@@ -39,8 +39,8 @@ Autonomous Spidertron AI for **Factorio 2.1**.
 3. Set **Mode** on the spidertron GUI: **Off** / **Hunter** / **Scout**.
 4. Or toggle Hunter via toolbar **Toggle Spidertron Hunter** / `Ctrl+Shift+H` (enables Off spiders as Hunter; does not convert Scouts).
 5. Home is set to the spidertron's position when AI is enabled.
-6. Per-hunter combat style via the Style dropdown (Hunter mode only).
-7. **Right-click** with a remote → straight vanilla path. **Ctrl+right-click** → lake-aware path (ground: travel then hunt from there; enemy: path then fight).
+6. Per-hunter combat style via the **Style** dropdown (Hunter mode only) in the vertical panel beside the spidertron GUI.
+7. **Right-click** with a remote → straight vanilla path. **Ctrl+right-click** → built-in lake-aware path (works with AI on or off; no other spider mods required). With Hunter AI: ground travel then hunt; enemy click path then fight.
 
 ### Scout controls
 
@@ -136,6 +136,8 @@ Alias: `SpidertronHunter` (same methods).
 ## Compatibility
 
 Spidertron Hunter is an independent project. It is not a fork of, and is not intended as a replacement for, [Spidertron Patrols](https://mods.factorio.com/mod/SpidertronPatrols) or [Spidertron Enhancements](https://mods.factorio.com/mod/SpidertronEnhancements).
+
+**Lake-aware Ctrl+right-click** is built into Hunter (own pathfinder and collision data). You do not need Enhancements or Patrols for pathing around lakes or large buildings.
 
 Those mods are listed as optional dependencies. When they are installed, Spidertron Hunter enables optional compatibility features where appropriate (for example, forcing Spidertron Patrols to manual while Hunter AI is enabled and restoring automatic on disable when prior mode is known, and remapping AI state if a spidertron entity is replaced).
 

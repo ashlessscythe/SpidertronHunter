@@ -2,6 +2,18 @@
 
 All notable changes to Spidertron Hunter are documented here.
 
+## [0.2.9] — 2026-08-30
+
+### Added
+
+- **Built-in lake-aware Ctrl+right-click** works on any spidertron with a vanilla remote — **no Hunter AI required** and no dependency on Spidertron Enhancements. Includes own `large_entity` collision layer for routing around large buildings.
+- Vertical spidertron settings panel (Mode, Style, Home buttons, status) to the right of the inventory GUI.
+- Gallery screenshot for the vertical settings panel (`media/combat_style_gui.png`).
+
+### Changed
+
+- All lake-aware pathing (autonomous AI and Ctrl+RMB) shares one pathfinder module; optional mods remain compat-only (Patrols handoff, Enhancements entity remap).
+
 ## [0.2.8] — 2026-08-10
 
 ### Added

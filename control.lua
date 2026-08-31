@@ -2,6 +2,7 @@ local persistence = require("scripts.persistence")
 local settings_mod = require("scripts.settings")
 local ai = require("scripts.ai")
 local pathfinder = require("scripts.pathfinder")
+local path_remote = require("scripts.path_remote")
 local targeting = require("scripts.targeting")
 local gui = require("scripts.gui")
 local manager_gui = require("scripts.manager_gui")
@@ -128,7 +129,11 @@ script.on_event("sh-use-alt-spidertron-remote", function(event)
   end
   for _, spidertron in pairs(player.spidertron_remote_selection) do
     if spidertron and spidertron.valid then
-      ai.on_alt_remote(spidertron, position, player)
+      if ai.is_enabled(spidertron) then
+        ai.on_alt_remote(spidertron, position, player)
+      else
+        path_remote.go_lake_aware(spidertron, position, player)
+      end
     end
   end
 end)

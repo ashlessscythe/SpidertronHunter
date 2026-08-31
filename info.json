@@ -1,9 +1,9 @@
 {
   "name": "SpidertronHunter",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "title": "Spidertron Hunter",
   "author": "Tony",
-  "description": "Autonomous Spidertron AI: Hunter mode searches and attacks; Scout mode explores and charts without engaging.",
+  "description": "Autonomous Spidertron AI: Hunter mode searches and attacks; Scout mode explores and charts. Built-in lake-aware Ctrl+right-click pathing.",
   "factorio_version": "2.1",
   "dependencies": [
     "base",

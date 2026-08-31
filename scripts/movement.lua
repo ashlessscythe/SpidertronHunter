@@ -1,5 +1,5 @@
 --- Autopilot wrappers. Final motion is always vanilla spidertron autopilot.
-local pathfinder = require("scripts.pathfinder")
+local path_remote = require("scripts.path_remote")
 local util = require("scripts.util")
 
 local M = {}
@@ -16,7 +16,7 @@ function M.go_to(spidertron, goal, lake_aware)
     spidertron.autopilot_destination = goal
     return
   end
-  pathfinder.request_path_to(spidertron, goal)
+  path_remote.go_lake_aware(spidertron, goal, nil)
 end
 
 --- @param spidertron LuaEntity

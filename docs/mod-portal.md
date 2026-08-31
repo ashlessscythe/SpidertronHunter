@@ -2,7 +2,7 @@
 
 Paste everything **below the horizontal rule** into the Factorio Mod Portal **Description** field.
 
-Images point at `raw.githubusercontent.com` on the `public` branch (`media/` is repo-only and omitted from the release ZIP). After adding gallery assets, push them to `public` before updating the Portal description.
+Images point at `raw.githubusercontent.com` on the `public` branch (`media/` is repo-only and omitted from the release ZIP). After updating gallery assets (e.g. `combat_style_gui.png`), copy them to `public/media/` on that branch before updating the Portal description.
 
 ### Quick gallery URLs
 
@@ -33,6 +33,7 @@ Designed to feel like a natural extension of vanilla gameplay, the focus is auto
 - 🛡️ Tactical retreat with optional re-engage
 - 🧭 Scout mode explores and discovers enemy bases
 - 👥 Fleet Manager for controlling multiple Spidertrons
+- 🗺️ Built-in lake-aware **Ctrl+right-click** pathing (no other spider mods required)
 - 🕷️ Uses vanilla Spidertron autopilot
 - 🌐 Multiplayer compatible
 - ⚡ UPS-conscious
@@ -47,9 +48,9 @@ Designed to feel like a natural extension of vanilla gameplay, the focus is auto
 
 ---
 
-![Combat style dropdown](https://raw.githubusercontent.com/ashlessscythe/SpidertronHunter/public/media/combat_style_gui.png)
+![Spidertron Hunter settings panel](https://raw.githubusercontent.com/ashlessscythe/SpidertronHunter/public/media/combat_style_gui.png)
 
-*Choose how each Hunter fights: Hold, Strafe, Circle, or Flank.*
+*Vertical panel beside the Spidertron inventory: Mode, combat Style (Hold / Strafe / Circle / Flank), Set/Clear home, and AI status.*
 
 ---
 
@@ -110,7 +111,7 @@ Hunters automatically:
 
 Right-click issues a straight vanilla autopilot path (as before).
 
-`Ctrl`+right-click uses a lake-aware path (same pathfinder as autonomous travel): ground clicks travel then resume hunting; enemy clicks path then engage.
+`Ctrl`+right-click uses Hunter's **built-in** lake-aware pathfinder (no other spider mods required; works with AI on or off): ground clicks travel then resume hunting when AI is enabled; enemy clicks path then engage.
 
 ---
 
@@ -214,6 +215,8 @@ Optional compatibility is included for:
 - Spidertron Enhancements
 - Space Age
 
+**Lake-aware Ctrl+right-click** is built into Hunter (own pathfinder and building-collision data). You do not need Enhancements or Patrols for pathing.
+
 When Hunter AI is enabled alongside Spidertron Patrols, patrol control is temporarily switched to manual so both mods don't compete for Spidertron autopilot. Previous behavior is restored when Hunter AI is disabled.
 
 ---
@@ -223,6 +226,8 @@ When Hunter AI is enabled alongside Spidertron Patrols, patrol control is tempor
 - Autonomous Hunter AI
 - Autonomous Scout AI
 - Fleet Manager
+- Built-in lake-aware Ctrl+right-click pathing (AI on or off)
+- Vertical spidertron settings panel (Mode, Style, Home)
 - Shared enemy discovery cache
 - Automatic target acquisition
 - Automatic return home

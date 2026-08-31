@@ -36,6 +36,7 @@ function M.ensure_storage()
   storage.path_requests = storage.path_requests or {}
   storage.path_statuses = storage.path_statuses or {}
   storage.path_queue = storage.path_queue or {}
+  storage.path_only = storage.path_only or {}
   storage.scan_cursor = storage.scan_cursor or nil
   storage.think_cursor = storage.think_cursor or nil
   storage.settings_cache = storage.settings_cache or {}

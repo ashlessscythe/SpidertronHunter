@@ -1119,6 +1119,14 @@ harness.run("info.json name and version for portal zip", function()
   harness.assert_eq(zip, "SpidertronHunter_" .. version .. ".zip")
 end)
 
+harness.run("data-final-fixes.lua exists for collision layer", function()
+  local f = io.open("data-final-fixes.lua", "r")
+  harness.assert_true(f ~= nil, "missing data-final-fixes.lua")
+  if f then
+    f:close()
+  end
+end)
+
 harness.run("migration files exist for schema versions", function()
   for _, ver in ipairs({ "0.1.0", "0.1.5", "0.1.7", "0.1.9", "0.1.15", "0.1.20" }) do
     local path = "migrations/" .. ver .. ".lua"
@@ -1258,6 +1266,97 @@ harness.run("ai MOVING update completes hunter player_goal to SEARCH", function(
   -- Arrival clears player_goal and enters SEARCH; think chains SEARCH→PATROL when idle.
   harness.assert_eq(ai.player_goal, nil)
   harness.assert_true(ai.state == States.SEARCH or ai.state == States.PATROL)
+end)
+
+---------------------------------------------------------------------------
+-- path_remote standalone lake pathing
+---------------------------------------------------------------------------
+
+local path_remote = require("scripts.path_remote")
+local pathfinder_mod = require("scripts.pathfinder")
+
+harness.run("path_remote.go_lake_aware creates path_only when AI off", function()
+  schema.ensure_storage()
+  storage.spiders = {}
+  storage.path_only = {}
+  storage.path_queue = {}
+  storage.path_statuses = {}
+  storage.path_requests = {}
+
+  local req_calls = {}
+  local orig_request = pathfinder_mod.request_path_to
+  pathfinder_mod.request_path_to = function(_spider, goal)
+    req_calls[#req_calls + 1] = { x = goal.x, y = goal.y }
+    return true
+  end
+
+  local spider = {
+    valid = true,
+    type = "spider-vehicle",
+    name = "spidertron",
+    unit_number = 99,
+    position = { x = 0, y = 0 },
+    surface_index = 1,
+    follow_target = nil,
+    autopilot_destination = nil,
+  }
+
+  path_remote.go_lake_aware(spider, { x = 50, y = 60 }, nil)
+
+  harness.assert_true(storage.path_only[99] ~= nil)
+  harness.assert_eq(storage.path_only[99].pending_goal.x, 50)
+  harness.assert_eq(storage.path_only[99].pending_goal.y, 60)
+  harness.assert_eq(#req_calls, 1)
+  harness.assert_eq(req_calls[1].x, 50)
+  harness.assert_eq(spider.autopilot_destination.x, 50)
+
+  pathfinder_mod.request_path_to = orig_request
+end)
+
+harness.run("path_remote.go_lake_aware skips path_only when AI enabled", function()
+  schema.ensure_storage()
+  storage.spiders = {}
+  storage.path_only = {}
+  storage.path_queue = {}
+  storage.path_statuses = {}
+  storage.path_requests = {}
+
+  local orig_request = pathfinder_mod.request_path_to
+  pathfinder_mod.request_path_to = function()
+    return true
+  end
+
+  local spider = {
+    valid = true,
+    type = "spider-vehicle",
+    name = "spidertron",
+    unit_number = 100,
+    position = { x = 0, y = 0 },
+    surface_index = 1,
+    follow_target = nil,
+    autopilot_destination = nil,
+  }
+  local ai = persistence.create_ai(spider)
+  ai.state = States.PATROL
+  ai.role = "hunter"
+
+  path_remote.go_lake_aware(spider, { x = 10, y = 20 }, nil)
+
+  harness.assert_eq(storage.path_only[100], nil)
+
+  pathfinder_mod.request_path_to = orig_request
+end)
+
+harness.run("pathfinder.path_targets_for_role hunter without walkable uses raw goal", function()
+  local path_to, final_goal = pathfinder_mod.path_targets_for_role("hunter", nil, { x = 1, y = 2 })
+  harness.assert_eq(path_to.x, 1)
+  harness.assert_eq(final_goal.y, 2)
+end)
+
+harness.run("pathfinder.path_targets_for_role scout without walkable is unreachable", function()
+  local path_to, final_goal = pathfinder_mod.path_targets_for_role("scout", nil, { x = 1, y = 2 })
+  harness.assert_eq(path_to, nil)
+  harness.assert_eq(final_goal, nil)
 end)
 
 ---------------------------------------------------------------------------
