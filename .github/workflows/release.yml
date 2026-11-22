@@ -167,3 +167,41 @@ jobs:
             ### Changes
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish:
+    name: Publish to Factorio Mod Portal
+    needs: package
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download packaged zip
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.package.outputs.zip_name }}
+          path: dist
+
+      - name: Upload to Mod Portal
+        env:
+          FACTORIO_MOD_API_KEY: ${{ secrets.FACTORIO_MOD_API_KEY }}
+          ZIP: dist/${{ needs.package.outputs.zip_name }}
+          MOD_NAME: SpidertronHunter
+        run: |
+          set -euo pipefail
+          if [[ -z "${FACTORIO_MOD_API_KEY}" ]]; then
+            echo "FACTORIO_MOD_API_KEY secret is not set"
+            exit 1
+          fi
+
+          # Step 1: request an upload URL
+          INIT=$(curl -sS --fail-with-body -X POST \
+            -H "Authorization: Bearer ${FACTORIO_MOD_API_KEY}" \
+            --form-string "mod=${MOD_NAME}" \
+            https://mods.factorio.com/api/v2/mods/releases/init_upload)
+          UPLOAD_URL=$(printf '%s' "${INIT}" | python3 -c "import json,sys; print(json.load(sys.stdin)['upload_url'])")
+
+          # Step 2: upload the zip
+          RESP=$(curl -sS --fail-with-body -X POST \
+            -F "file=@${ZIP}" \
+            "${UPLOAD_URL}")
+          echo "${RESP}"
+          printf '%s' "${RESP}" | python3 -c "import json,sys; assert json.load(sys.stdin).get('success'), 'upload failed'"
