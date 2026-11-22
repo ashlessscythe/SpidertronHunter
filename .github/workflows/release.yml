@@ -206,8 +206,15 @@ jobs:
           echo "${RESP}"
           printf '%s' "${RESP}" | python3 -c "import json,sys; assert json.load(sys.stdin).get('success'), 'upload failed'"
 
-      - name: Update Mod Portal description
-        continue-on-error: true
+  portal-description:
+    name: Update Mod Portal description
+    if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Push description from docs/mod-portal.md
         env:
           FACTORIO_MOD_API_KEY: ${{ secrets.FACTORIO_MOD_API_KEY }}
         run: |
