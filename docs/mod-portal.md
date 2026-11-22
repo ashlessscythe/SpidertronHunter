@@ -19,7 +19,7 @@ https://raw.githubusercontent.com/ashlessscythe/SpidertronHunter/public/media/fl
 
 > **Give your Spidertrons a mission.**
 
-Spidertron Hunter transforms idle Spidertrons into autonomous combat units that hunt enemy bases, scout unexplored terrain, and return home to repair and restock—all while using vanilla Spidertron autopilot.
+Put your idle Spidertrons to work. Hunters track down and destroy enemy bases, Scouts chart unexplored terrain, and both head home on their own to repair and restock—all driven by vanilla Spidertron autopilot.
 
 Designed to feel like a natural extension of vanilla gameplay, the focus is automation, not stronger Spidertrons.
 

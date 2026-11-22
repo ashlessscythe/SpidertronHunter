@@ -205,3 +205,17 @@ jobs:
             "${UPLOAD_URL}")
           echo "${RESP}"
           printf '%s' "${RESP}" | python3 -c "import json,sys; assert json.load(sys.stdin).get('success'), 'upload failed'"
+
+      - name: Update Mod Portal description
+        continue-on-error: true
+        env:
+          FACTORIO_MOD_API_KEY: ${{ secrets.FACTORIO_MOD_API_KEY }}
+        run: |
+          set -euo pipefail
+          # Description = everything below the first horizontal rule in docs/mod-portal.md
+          awk 'f{print} /^---$/ && !f{f=1}' docs/mod-portal.md > description.md
+          curl -sS --fail-with-body -X POST \
+            -H "Authorization: Bearer ${FACTORIO_MOD_API_KEY}" \
+            --form-string "mod=SpidertronHunter" \
+            --form-string "description=$(cat description.md)" \
+            https://mods.factorio.com/api/v2/mods/edit_details

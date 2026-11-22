@@ -2,6 +2,12 @@
 
 All notable changes to Spidertron Hunter are documented here.
 
+## [0.2.10] — 2026-11-22
+
+### Changed
+
+- Reworded the Mod Portal description intro; release pipeline now publishes to the Mod Portal automatically.
+
 ## [0.2.9] — 2026-08-30
 
 ### Added
