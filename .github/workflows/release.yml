@@ -206,8 +206,23 @@ jobs:
           echo "${RESP}"
           printf '%s' "${RESP}" | python3 -c "import json,sys; assert json.load(sys.stdin).get('success'), 'upload failed'"
 
+  sync-public:
+    name: Sync public branch
+    needs: package
+    if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Force public to released commit
+        run: git push origin "${GITHUB_SHA}:refs/heads/public" --force
+
   portal-description:
     name: Update Mod Portal description
+    needs: sync-public
     if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:

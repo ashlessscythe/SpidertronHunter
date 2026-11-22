@@ -16,7 +16,7 @@ Maintainer guide for publishing a new version.
 6. **GitHub Actions** runs [`.github/workflows/release.yml`](../.github/workflows/release.yml): tests, builds the Mod Portal ZIP, and validates archive layout.
 7. A **GitHub Release** is created automatically for the tag, with the ZIP attached and generated release notes.
 8. The **publish** job uploads the ZIP to the [Factorio Mod Portal](https://mods.factorio.com) automatically on tag pushes, using the `FACTORIO_MOD_API_KEY` repo secret (API key needs the *ModPortal: Upload Mods* usage). Manual fallback: Mod → Releases → Upload.
-9. **Update the Mod Portal description** if needed: copy from [mod-portal.md](mod-portal.md) (absolute `raw.githubusercontent.com` gallery URLs on `public`).
+9. The **sync-public** job force-updates the `public` branch to the released commit (replaces `sync_public.sh`), then **portal-description** pushes [mod-portal.md](mod-portal.md) to the portal (gallery images load from `public` via `raw.githubusercontent.com`).
 
 ## Package rules (do not change casually)
 
