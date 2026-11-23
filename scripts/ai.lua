@@ -911,9 +911,14 @@ States.register(States.ATTACKING, {
       return low_ammo
     end
 
+    local combat_range = settings_mod.get().combat_range
     local target = ai.target_entity
     if target and target.valid and not beyond_pursuit(ai, target.position) then
       ai.post_combat_since = nil
+      if combat.needs_travel(util.distance(spidertron.position, target.position), combat_range) then
+        -- Target moved/retreated far away: path lake-aware instead of kiting hops.
+        return States.MOVING
+      end
       combat.update(ai, spidertron, target)
       return
     end
@@ -926,6 +931,10 @@ States.register(States.ATTACKING, {
     local next_enemy = scanner.find_nearby_combat(ai, spidertron.position, reacquire_radius)
     if next_enemy and claim_target(ai, next_enemy) then
       ai.post_combat_since = nil
+      if combat.needs_travel(util.distance(spidertron.position, next_enemy.position), combat_range) then
+        -- Next mob is far (possibly across water): lake-aware travel, not straight-line kiting.
+        return States.MOVING
+      end
       combat.update(ai, spidertron, next_enemy)
       return
     end

@@ -175,6 +175,16 @@ function M.should_reposition(ai, spidertron, target)
   return true
 end
 
+--- True when the target is too far for a short kiting hop: the caller should
+--- travel with the lake-aware pathfinder (MOVING) instead of combat.update's
+--- straight-line autopilot, which walks into lakes.
+--- @param distance number
+--- @param combat_range number
+--- @return boolean
+function M.needs_travel(distance, combat_range)
+  return distance > combat_range * 1.35
+end
+
 --- Apply a combat reposition if needed. Returns true if a move was issued.
 --- @param ai table
 --- @param spidertron LuaEntity

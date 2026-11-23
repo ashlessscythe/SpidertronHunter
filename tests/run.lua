@@ -1461,6 +1461,13 @@ harness.run("thumbnail.png is 144x144", function()
   harness.assert_eq(h, 144)
 end)
 
+harness.run("combat.needs_travel hands far targets to the lake-aware pathfinder", function()
+  local combat_mod = require("scripts.combat")
+  harness.assert_false(combat_mod.needs_travel(20, 22))
+  harness.assert_false(combat_mod.needs_travel(22 * 1.35, 22))
+  harness.assert_true(combat_mod.needs_travel(60, 22))
+end)
+
 ---------------------------------------------------------------------------
 
 if not harness.summary() then
