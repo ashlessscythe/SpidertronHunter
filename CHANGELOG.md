@@ -4,6 +4,12 @@ All notable changes to Spidertron Hunter are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- Alerts: a spidertron that retreats at low health, gets stuck (repeated re-paths in the same spot) or is destroyed now alerts you. Retreat and stuck use Factorio's custom alerts (edge-of-screen icon, click to locate); a destroyed spidertron prints a chat line with a map ping. Each kind is throttled per spider to 30 s.
+- New runtime-global setting **Alerts** (Off / Important / All). Important is the default; All also alerts when a hunter heads home for ammo.
+- Unit tests for alert levels, throttling, stuck counting and the death message, and in-game checks that a real retreat raises (or, with alerts off, doesn't raise) a custom alert.
+
 ## [0.2.13] — 2026-11-23
 
 ### Fixed

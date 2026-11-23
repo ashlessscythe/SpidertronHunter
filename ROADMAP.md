@@ -9,7 +9,7 @@ Ideas and planned work for Spidertron Hunter. Nothing here is a commitment; item
 - [ ] **Ammo and fuel logic**: return home on low fuel or low ammo per weapon type; "minimum loadout" setting.
 - [ ] **Support roles**: medic/repair follower; pollution-source clearing.
 - [ ] **Hunter patrol routes / guard zones**: radius-limited hunting instead of only a home point.
-- [ ] **Alerts**: notify on retreat, stuck, or death; "last seen" ping.
+- [x] **Alerts**: notify on retreat, stuck, or death (custom alerts + map ping). Possible follow-ups: per-player setting, alert on scout failure.
 
 ## Quality and performance
 

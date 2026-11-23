@@ -110,6 +110,42 @@ describe("hunter behaviour", function()
     end)
   end)
 
+  local function custom_alert_count()
+    local n = 0
+    local found = game.connected_players[1].get_alerts({ type = defines.alert_type.custom })
+    for _, by_type in pairs(found) do
+      for _, list in pairs(by_type) do n = n + #list end
+    end
+    return n
+  end
+
+  local function retreat_scenario(level, expect_alert)
+    zoom_to(10, 0, 0.4)
+    set_setting("sh-alert-level", level)
+    game.connected_players[1].remove_alert({ type = defines.alert_type.custom })
+    local spider = spawn_hunter(0, 0)
+    spider.health = spider.max_health * 0.10 -- below the 25% retreat threshold
+    spawn_enemy("small-worm-turret", 45, 0)
+    call("enable", spider)
+    local seen = {}
+    async(60 * 40)
+    on_tick(function()
+      local st = state_of(spider)
+      if st then seen[st] = true end
+      if seen.returning or seen.restocking then
+        if expect_alert then
+          assert(custom_alert_count() >= 1, "no custom alert after retreat")
+        else
+          assert(custom_alert_count() == 0, "alert shown while alerts are off")
+        end
+        done()
+      end
+    end)
+  end
+
+  test("retreat raises a custom alert for the player", function() retreat_scenario("important", true) end)
+  test("no alert when alerts are off", function() retreat_scenario("off", false) end)
+
   test("scout reaches its waypoint and charts it without attacking", function()
     zoom_to(0, -40, 0.3)
     -- scouts must be unarmed: no ammo inserted

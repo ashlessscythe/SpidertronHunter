@@ -2,6 +2,7 @@
 local States = require("scripts.states")
 local settings_mod = require("scripts.settings")
 local util = require("scripts.util")
+local alerts = require("scripts.alerts")
 local scanner = require("scripts.scanner")
 local targeting = require("scripts.targeting")
 local logistics = require("scripts.logistics")
@@ -154,6 +155,7 @@ local function check_tactical_retreat(ai)
       "retreat " .. string.format("%.0f", ratio * 100) .. "%",
       spidertron
     )
+    alerts.notify(spidertron, "retreat", ai, string.format("%.0f", ratio * 100))
     return States.RETURNING
   end
   return nil
@@ -200,6 +202,7 @@ local function check_low_ammo(ai)
       .. ")",
     spidertron
   )
+  alerts.notify(spidertron, "low-ammo", ai)
   return States.RETURNING
 end
 

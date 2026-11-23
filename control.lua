@@ -1,4 +1,5 @@
 local persistence = require("scripts.persistence")
+local alerts = require("scripts.alerts")
 local settings_mod = require("scripts.settings")
 local ai = require("scripts.ai")
 local pathfinder = require("scripts.pathfinder")
@@ -154,6 +155,9 @@ script.on_event(defines.events.on_entity_died, function(event)
     return
   end
   if entity.type == "spider-vehicle" then
+    if storage.spiders[entity.unit_number] then
+      alerts.died(entity)
+    end
     manager_gui.mark_dirty()
     return
   end

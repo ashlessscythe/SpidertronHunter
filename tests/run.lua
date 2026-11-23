@@ -1551,6 +1551,7 @@ harness.run("pathfinder.on_path_finished applies path for active hunter despite 
 end)
 
 require("tests.pathfinder_spec")
+require("tests.alerts_spec")
 
 ---------------------------------------------------------------------------
 

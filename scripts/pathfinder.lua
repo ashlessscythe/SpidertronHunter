@@ -4,6 +4,7 @@
 --- Fleet note: never fall back to direct autopilot when the path budget is full —
 --- queue instead. Direct-into-water is what made some group members get stuck.
 local util = require("scripts.util")
+local alerts = require("scripts.alerts")
 
 local M = {}
 
@@ -537,6 +538,7 @@ function M.repath_if_stuck(spidertron, goal)
   end
   spidertron.follow_target = nil
   spidertron.autopilot_destination = nil
+  alerts.on_stuck_repath(spidertron, ai)
   M.request_path_to(spidertron, goal)
   return true
 end

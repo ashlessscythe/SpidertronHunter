@@ -122,6 +122,14 @@ data:extend({
     order = "c-a",
   },
   {
+    type = "string-setting",
+    name = "sh-alert-level",
+    setting_type = "runtime-global",
+    default_value = "important",
+    allowed_values = { "off", "important", "all" },
+    order = "c-b",
+  },
+  {
     type = "int-setting",
     name = "sh-max-idle-time",
     setting_type = "runtime-global",
