@@ -60,8 +60,9 @@ script.on_load(function()
 end)
 
 script.on_configuration_changed(function()
-  persistence.init_storage()
-  -- Versioned migrations/*.lua also run; this catches missing tables on reload.
+  -- Versioned migrations/*.lua also run; this sanitizes AI records on every
+  -- mod/game version change so new releases need no per-version migration file.
+  persistence.migrate()
   settings_mod.refresh()
   manager_gui.reset_tracking()
   register_nth_tick(settings_mod.get().scan_interval)

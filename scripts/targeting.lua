@@ -117,7 +117,10 @@ function M.remove_entity(entity)
     return
   end
   for i = #list, 1, -1 do
-    if list[i].entity == entity or list[i].name == entity.name then
+    -- Match the entity itself (or a stale entry for the same thing at ~the same
+    -- spot); never other same-named entities that merely share the chunk.
+    local e = list[i]
+    if e.entity == entity or (e.name == entity.name and util.distance_squared(e.position, entity.position) < 4) then
       local id = list[i].id
       table.remove(list, i)
       storage.target_claims[id] = nil
@@ -128,37 +131,44 @@ function M.remove_entity(entity)
   end
 end
 
---- Expire old / invalid entries. Budget-limited.
+--- Expire old / invalid entries. Budget-limited; a rotating cursor (count of
+--- chunk lists already visited this sweep) makes successive calls cover the
+--- whole cache instead of re-checking the first few entries forever.
 --- @param budget integer?
 function M.prune(budget)
   budget = budget or 8
   local ttl = settings_mod.get().enemy_cache_ttl
   local tick = game.tick
+  local skip = storage.prune_cursor or 0
+  local index = 0
   local checked = 0
 
-  for surface_index, bucket in pairs(storage.enemy_cache) do
+  for _, bucket in pairs(storage.enemy_cache) do
     for key, list in pairs(bucket) do
-      for i = #list, 1, -1 do
-        checked = checked + 1
-        local entry = list[i]
-        local dead = not entry.entity or not entry.entity.valid
-        local expired = (tick - entry.last_seen) > ttl
-        if dead or expired then
-          storage.target_claims[entry.id] = nil
-          table.remove(list, i)
+      index = index + 1
+      if index > skip then
+        for i = #list, 1, -1 do
+          local entry = list[i]
+          local dead = not entry.entity or not entry.entity.valid
+          local expired = (tick - entry.last_seen) > ttl
+          if dead or expired then
+            storage.target_claims[entry.id] = nil
+            table.remove(list, i)
+          end
+        end
+        checked = checked + #list + 1
+        if #list == 0 then
+          bucket[key] = nil
         end
         if checked >= budget then
-          if #list == 0 then
-            bucket[key] = nil
-          end
+          storage.prune_cursor = index
           return
         end
       end
-      if #list == 0 then
-        bucket[key] = nil
-      end
     end
   end
+  -- Finished a full sweep: start over next call.
+  storage.prune_cursor = 0
 end
 
 --- Find best cached enemy near position within radius.

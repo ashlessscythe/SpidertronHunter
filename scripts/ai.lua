@@ -1433,7 +1433,7 @@ function M.think_all()
   local cfg = settings_mod.get()
   local n = cfg.spiders_per_think
   local from = storage.think_cursor
-  local next_key = util.for_n_of(storage.spiders, from, n, function(ai)
+  local next_key = util.for_n_of(storage.spiders, from, n, function(ai, key)
     if not ai then
       return nil, true -- delete
     end
@@ -1443,6 +1443,7 @@ function M.think_all()
       if recovered and util.is_valid_spidertron(recovered) then
         ai.entity = recovered
       else
+        persistence.release_ai_resources(ai.unit_number or key, ai)
         return nil, true -- delete — truly gone
       end
     end

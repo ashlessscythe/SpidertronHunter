@@ -52,20 +52,27 @@ function M.create_ai(spidertron)
   return ai
 end
 
+--- Release everything an AI record holds outside storage.spiders (claim, path state).
+--- @param unit_number integer
+--- @param ai table?
+function M.release_ai_resources(unit_number, ai)
+  if ai and ai.claim_id and storage.target_claims[ai.claim_id] == unit_number then
+    storage.target_claims[ai.claim_id] = nil
+  end
+  if storage.path_statuses[unit_number] then
+    storage.path_statuses[unit_number] = nil
+  end
+  pathfinder.clear_queue_for(unit_number)
+end
+
 --- @param unit_number integer
 function M.remove_ai(unit_number)
   local ai = storage.spiders[unit_number]
   if not ai then
     return
   end
-  if ai.claim_id and storage.target_claims[ai.claim_id] == unit_number then
-    storage.target_claims[ai.claim_id] = nil
-  end
+  M.release_ai_resources(unit_number, ai)
   storage.spiders[unit_number] = nil
-  if storage.path_statuses[unit_number] then
-    storage.path_statuses[unit_number] = nil
-  end
-  pathfinder.clear_queue_for(unit_number)
 end
 
 --- @param event EventData.on_object_destroyed

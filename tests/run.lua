@@ -1360,6 +1360,69 @@ harness.run("pathfinder.path_targets_for_role scout without walkable is unreacha
 end)
 
 ---------------------------------------------------------------------------
+-- targeting cache hygiene / persistence cleanup
+---------------------------------------------------------------------------
+
+local targeting = require("scripts.targeting")
+local persistence_mod = require("scripts.persistence")
+
+local function cache_entity(name, x, y)
+  return { valid = true, name = name, type = "turret", surface_index = 1, position = { x = x, y = y } }
+end
+
+local function reset_cache_storage(ttl)
+  storage = {
+    enemy_cache = {},
+    target_claims = {},
+    path_queue = {},
+    path_statuses = {},
+    path_requests = {},
+    spiders = {},
+    settings_cache = { enemy_cache_ttl = ttl or 1000 },
+    next_cache_id = 1,
+  }
+  game.tick = 0
+end
+
+harness.run("targeting.remove_entity only drops the dead entity, not same-named neighbours", function()
+  reset_cache_storage()
+  local a = cache_entity("medium-worm-turret", 1, 1)
+  local b = cache_entity("medium-worm-turret", 20, 20) -- same chunk, far away
+  targeting.remember(a)
+  targeting.remember(b)
+  targeting.remove_entity(a)
+  local key = util.chunk_key(b.position)
+  local list = storage.enemy_cache[1][key]
+  harness.assert_eq(#list, 1)
+  harness.assert_true(list[1].entity == b)
+end)
+
+harness.run("targeting.prune cursor eventually covers every chunk list", function()
+  reset_cache_storage(1000)
+  -- 6 chunks, one entry each; all will expire.
+  for i = 0, 5 do
+    targeting.remember(cache_entity("small-worm-turret", i * 64 + 1, 1))
+  end
+  game.tick = 5000 -- everything expired
+  for _ = 1, 12 do
+    targeting.prune(1)
+  end
+  harness.assert_eq(next(storage.enemy_cache[1]), nil)
+end)
+
+harness.run("persistence.release_ai_resources frees claim, path status and queue", function()
+  reset_cache_storage()
+  storage.target_claims[7] = 42
+  storage.path_statuses[42] = { [1] = {} }
+  storage.path_queue = { { unit_number = 42 }, { unit_number = 43 } }
+  persistence_mod.release_ai_resources(42, { claim_id = 7 })
+  harness.assert_eq(storage.target_claims[7], nil)
+  harness.assert_eq(storage.path_statuses[42], nil)
+  harness.assert_eq(#storage.path_queue, 1)
+  harness.assert_eq(storage.path_queue[1].unit_number, 43)
+end)
+
+---------------------------------------------------------------------------
 
 if not harness.summary() then
   os.exit(1)
