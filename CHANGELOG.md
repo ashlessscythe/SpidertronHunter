@@ -4,10 +4,16 @@ All notable changes to Spidertron Hunter are documented here.
 
 ## [Unreleased]
 
+### Fixed
+
+- Hunters now return home after combat even when their target dies to auto-targeting while they are still walking toward it; previously they idled at the kill site forever.
+- "Spawners first" and "Units first" target priority now applies to a hunter's first target; before, the nearest enemy always won until the enemy cache warmed up.
+
 ### Added
 
 - In-game test suite using [factorio-test](https://github.com/GlassBricks/FactorioTest), run headless in Docker (`scripts/run_factorio_tests.sh`) or step by step in a real Factorio window (`scripts/watch_factorio_tests.sh`).
 - Visual hunter scenarios: lone biter, biter nest, and a lake the hunter must walk around.
+- Behaviour tests: disable stops the spider, nearest-target priority, low-health retreat, scout waypoint without attacking, following the player, two hunters splitting nests, and keeping combat distance.
 
 ## [0.2.11] — 2026-11-22
 

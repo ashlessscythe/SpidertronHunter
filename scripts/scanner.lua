@@ -17,6 +17,12 @@ local TYPE_PRIORITY = {
   ["spider-unit"] = 3,
 }
 
+-- Entity types to look for first, per prioritisation mode ("nearest" has no priority types).
+local PRIORITY_TYPES = {
+  ["spawners-first"] = { "unit-spawner", "turret" },
+  ["units-first"] = { "unit" },
+}
+
 --- @param home MapPosition
 --- @param spider_pos MapPosition
 --- @param enemy_pos MapPosition
@@ -58,6 +64,36 @@ function M.scan_for_enemy(ai)
   if cached and cached.entity and cached.entity.valid then
     if allowed_target(home, spider_pos, cached.position, max_pursuit, radius) then
       return cached.entity
+    end
+  end
+
+  -- Non-"nearest" prioritisation must run before find_nearest_enemy, otherwise a cold cache
+  -- always returns the nearest enemy and the setting is ignored.
+  local priority_types = PRIORITY_TYPES[cfg.enemy_prioritization]
+  if priority_types and game.forces.enemy then
+    local best, best_rank, best_dsq = nil, 99, 1e18
+    local found = spidertron.surface.find_entities_filtered({
+      position = spider_pos,
+      radius = radius,
+      type = priority_types,
+      force = "enemy",
+    })
+    for i = 1, #found do
+      local e = found[i]
+      if e.valid and allowed_target(home, spider_pos, e.position, max_pursuit, radius) then
+        local rank = TYPE_PRIORITY[e.type] or 50
+        if cfg.enemy_prioritization == "units-first" and e.type == "unit" then
+          rank = 0
+        end
+        local dsq = util.distance_squared(spider_pos, e.position)
+        if rank < best_rank or (rank == best_rank and dsq < best_dsq) then
+          best, best_rank, best_dsq = e, rank, dsq
+        end
+        targeting.remember(e)
+      end
+    end
+    if best then
+      return best
     end
   end
 

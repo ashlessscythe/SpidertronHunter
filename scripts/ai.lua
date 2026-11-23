@@ -863,7 +863,10 @@ States.register(States.MOVING, {
     end
 
     if not target or not target.valid then
+      -- Target died en route (e.g. auto-targeting rockets): start the post-combat linger so SEARCH
+      -- can send the hunter home once the area stays quiet.
       release_claim(ai)
+      ai.post_combat_since = ai.post_combat_since or game.tick
       return States.SEARCH
     end
     ai.target_pos = { x = target.position.x, y = target.position.y }
