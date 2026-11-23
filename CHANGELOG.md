@@ -4,6 +4,8 @@ All notable changes to Spidertron Hunter are documented here.
 
 ## [Unreleased]
 
+## [0.2.12] — 2026-11-23
+
 ### Fixed
 
 - Ctrl+right-click (Hunter off) on a spot inside a lake now ends on the nearest shore instead of leaving the spider pushing at the water's edge toward the clicked point forever.

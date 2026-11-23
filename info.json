@@ -1,6 +1,6 @@
 {
   "name": "SpidertronHunter",
-  "version": "0.2.11",
+  "version": "0.2.12",
   "title": "Spidertron Hunter",
   "author": "Tony",
   "description": "Autonomous Spidertron AI: Hunter mode searches and attacks; Scout mode explores and charts. Built-in lake-aware Ctrl+right-click pathing.",
