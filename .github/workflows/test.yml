@@ -42,3 +42,43 @@ jobs:
             printf '%s\n' "${BAD_MODE}"
             exit 1
           fi
+
+  in-game:
+    name: In-game tests (factorio-test, headless)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Mod targets Factorio 2.1; factorio-test needs 2.1.24+, so follow the experimental channel.
+      - name: Resolve Factorio version
+        id: factorio
+        run: echo "version=$(curl -fsSL https://factorio.com/api/latest-releases | jq -r .experimental.headless)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        id: factorio-cache
+        with:
+          path: ~/factorio
+          key: factorio-headless-${{ steps.factorio.outputs.version }}
+      - name: Download Factorio headless
+        if: steps.factorio-cache.outputs.cache-hit != 'true'
+        run: curl -fsSL "https://factorio.com/get-download/${{ steps.factorio.outputs.version }}/headless/linux64" | tar -xJ -C ~
+      - run: echo ~/factorio/bin/x64 >> "$GITHUB_PATH"
+
+      - run: npm install --no-save factorio-test-cli
+
+      - uses: actions/cache@v4
+        with:
+          path: factorio-test-data-dir/mods/*.zip
+          key: factorio-mods-${{ hashFiles('info.json', 'factorio-test.lock.json') }}
+      - name: Install mods
+        run: npx factorio-test mods install --mod-path .
+        env:
+          FACTORIO_USERNAME: ${{ secrets.FACTORIO_USERNAME }}
+          FACTORIO_TOKEN: ${{ secrets.FACTORIO_TOKEN }}
+
+      - name: Smoke tests
+        run: npx factorio-test run --mod-path . --tag-blacklist visual
+      - name: Hunter scenarios (visual-tagged, headless)
+        run: npx factorio-test run --mod-path . --tag-whitelist visual

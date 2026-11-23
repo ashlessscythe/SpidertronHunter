@@ -28,7 +28,7 @@ scripts/watch_factorio_tests.sh                                 # watch visual s
 
 Tests live in `tests/factorio/` and are registered in the `require("__factorio-test__/init")` call at the bottom of `control.lua`.
 
-CI runs the pure Lua suite via `.github/workflows/test.yml` on push/PR to `dev`.
+CI runs the pure Lua suite and the in-game tests (headless, needs repo secrets `FACTORIO_USERNAME` / `FACTORIO_TOKEN`) via `.github/workflows/test.yml` on push/PR to `dev`.
 
 ## Packaging
 
