@@ -132,13 +132,14 @@ describe("hunter behaviour", function()
     local spider = spawn_hunter(0, 0)
     call("enable", spider)
     local p = H.player_character_to(0, 0)
-    assert(p and p.character, "test player has no character")
-    zoom_to(30, 0, 0.35)
+    local char = p and (p.character or storage.test_character)
+    assert(char and char.valid, "test player has no character")
     H.player_character_to(70, 0)
     assert(call("follow_player", spider, p), "follow_player refused")
+    zoom_to(30, 0, 0.35, true) -- keep_character: the character is the follow target
     async(60 * 90)
     on_tick(function()
-      if distance(spider.position, p.character.position) < 15 then done() end
+      if distance(spider.position, char.position) < 15 then done() end
     end)
   end)
 
