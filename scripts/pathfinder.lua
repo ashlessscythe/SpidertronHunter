@@ -161,6 +161,14 @@ local function request_one_path(spidertron, start_position, target_position, goa
   })
 
   storage.path_requests_this_tick = (storage.path_requests_this_tick or 0) + 1
+  util.debug_log(
+    string.format(
+      "path: request #%d unit %d dist %.0f res %d",
+      request_id, spidertron.unit_number,
+      util.distance(start_position, goal_position), resolution
+    ),
+    spidertron
+  )
   storage.path_requests[request_id] = {
     spidertron = spidertron,
     unit_number = spidertron.unit_number,
@@ -511,6 +519,14 @@ function M.on_path_finished(event)
     return
   end
   storage.path_requests[event.id] = nil
+  util.debug_log(
+    string.format(
+      "path: result #%d unit %d path=%s busy=%s",
+      event.id, info.unit_number,
+      event.path and (#event.path .. " nodes") or "nil",
+      tostring(event.try_again_later or false)
+    )
+  )
 
   local spidertron = info.spidertron
   if not spidertron or not spidertron.valid then
