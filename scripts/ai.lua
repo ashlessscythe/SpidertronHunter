@@ -247,6 +247,9 @@ end
 --- @param player LuaPlayer?
 --- @return boolean success
 function M.enable(spidertron, player)
+  if spidertron and spidertron.valid and storage.path_only then
+    storage.path_only[spidertron.unit_number] = nil
+  end
   if not util.is_valid_spidertron(spidertron) then
     if player then
       util.flying_text(player, { "sh.denied-denylist" }, spidertron and spidertron.position or nil)
@@ -322,6 +325,9 @@ end
 --- @param player LuaPlayer?
 --- @return boolean success
 function M.enable_scout(spidertron, player)
+  if spidertron and spidertron.valid and storage.path_only then
+    storage.path_only[spidertron.unit_number] = nil
+  end
   if not util.is_valid_spidertron(spidertron) then
     if player then
       util.flying_text(player, { "sh.denied-denylist" }, spidertron and spidertron.position or nil)

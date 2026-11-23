@@ -1468,6 +1468,30 @@ harness.run("combat.needs_travel hands far targets to the lake-aware pathfinder"
   harness.assert_true(combat_mod.needs_travel(60, 22))
 end)
 
+harness.run("pathfinder.on_path_finished applies path for active hunter despite stale path_only", function()
+  local pf = require("scripts.pathfinder")
+  local added = {}
+  local spider = {
+    valid = true,
+    unit_number = 321,
+    position = { x = 0, y = 0 },
+    prototype = { height = 1.5 },
+    add_autopilot_destination = function(p) added[#added + 1] = p end,
+  }
+  local goal = { x = 100, y = 0 }
+  storage = {
+    spiders = { [321] = { unit_number = 321, state = "moving", role = "hunter", pending_goal = { x = 100, y = 0 } } },
+    -- stale entry left by an earlier Ctrl+RMB while Hunter was off
+    path_only = { [321] = { entity = spider, pending_goal = { x = 5, y = 5 } } },
+    path_requests = { [1] = { spidertron = spider, unit_number = 321, start_tick = 10, goal_position = goal } },
+    path_statuses = { [321] = { [10] = { finished = 0, success = false, total = 1, goal = goal } } },
+    path_queue = {},
+  }
+  pf.on_path_finished({ id = 1, path = { { position = { x = 30, y = 0 } }, { position = { x = 70, y = 0 } } } })
+  harness.assert_true(#added >= 1, "path waypoints must be applied")
+  harness.assert_eq(storage.path_only[321], nil)
+end)
+
 ---------------------------------------------------------------------------
 
 if not harness.summary() then

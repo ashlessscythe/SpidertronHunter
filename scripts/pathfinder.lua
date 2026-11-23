@@ -547,6 +547,13 @@ function M.on_path_finished(event)
 
   local ai = storage.spiders[unit_number]
   local path_only = get_path_only(unit_number)
+  -- A spider with Hunter/Scout active is driven by its AI record. A leftover
+  -- standalone (Ctrl+RMB-while-off) entry has a stale pending_goal and must not
+  -- be used to judge or discard its results.
+  if path_only and ai and ai.state ~= "idle" then
+    clear_path_only(unit_number)
+    path_only = nil
+  end
   local standalone = path_only ~= nil
 
   -- Abort if goal superseded, AI disabled, or player has taken control.
@@ -596,6 +603,7 @@ function M.on_path_finished(event)
   if path_only and path_only.pending_goal
     and (path_only.pending_goal.x ~= info.goal_position.x or path_only.pending_goal.y ~= info.goal_position.y)
   then
+    util.debug_log("path: result dropped (standalone goal superseded)", spidertron)
     status.finished = status.finished + 1
     status.success = true
     if status.finished >= status.total then
