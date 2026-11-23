@@ -256,3 +256,10 @@ Pathfinder uses it for building-aware routing. Attribution in NOTICE.
 `scripts/gui.lua` relative frame uses `direction = "vertical"` with labeled rows
 (Mode, Style when Hunter, Set/Clear home, status caption). Anchor unchanged
 (`relative_gui_position.right`).
+
+## AI module layout
+
+`ai.lua` holds enable/disable and player-command orchestration. State handlers live in
+`ai_states.lua` (registered on require) and shared helpers in `ai_common.lua`. Helpers that
+need `ai.disable` use `common.disable`, set by `ai.lua`, to avoid a circular require
+(Factorio forbids runtime require).

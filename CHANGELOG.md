@@ -6,8 +6,14 @@ All notable changes to Spidertron Hunter are documented here.
 
 ### Fixed
 
+- Fleet manager window position is now remembered per player instead of shared, so multiplayer clients no longer move each other's window.
+- A spider whose path request is queued keeps its place in line when its goal changes, so it can't be starved by a full path budget.
 - Hunters now return home after combat even when their target dies to auto-targeting while they are still walking toward it; previously they idled at the kill site forever.
 - "Spawners first" and "Units first" target priority now applies to a hunter's first target; before, the nearest enemy always won until the enemy cache warmed up.
+
+### Changed
+
+- Split `scripts/ai.lua` into `ai.lua` (orchestration), `ai_states.lua` (state handlers) and `ai_common.lua` (shared helpers). No behaviour change.
 
 ### Added
 

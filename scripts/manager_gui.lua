@@ -153,11 +153,25 @@ local function add_action_button(parent, action, tooltip, sprite, group_name, op
   return btn
 end
 
+--- Window positions are per player so multiplayer clients don't overwrite each other.
+--- @param player_index integer
+--- @return GuiLocation?
+local function get_window_position(player_index)
+  return storage.manager_window_positions and storage.manager_window_positions[player_index]
+end
+
+--- @param player_index integer
+--- @param location GuiLocation
+local function set_window_position(player_index, location)
+  storage.manager_window_positions = storage.manager_window_positions or {}
+  storage.manager_window_positions[player_index] = location
+end
+
 --- @param player LuaPlayer
 local function remember_location(player)
   local frame = player.gui.screen[FRAME_NAME]
   if frame and frame.valid and frame.location then
-    storage.manager_window_position = frame.location
+    set_window_position(player.index, frame.location)
   end
 end
 
@@ -351,8 +365,9 @@ function M.open(player, rebuild)
   })
   frame.style.minimal_width = 220
   frame.style.maximal_width = 280
-  if storage.manager_window_position then
-    frame.location = storage.manager_window_position
+  local saved_position = get_window_position(player.index)
+  if saved_position then
+    frame.location = saved_position
   else
     frame.auto_center = true
   end
@@ -623,7 +638,7 @@ function M.on_gui_closed(event)
     return
   end
   if event.element.location then
-    storage.manager_window_position = event.element.location
+    set_window_position(event.player_index, event.element.location)
   end
   event.element.destroy()
   adjust_open_count(-1)

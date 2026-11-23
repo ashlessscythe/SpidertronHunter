@@ -118,15 +118,22 @@ end
 
 local function enqueue(item)
   ensure_queue()
-  -- One pending job per spider: newer goals replace older queued work.
-  local src = storage.path_queue
+  -- One pending job per spider: newer goals replace older queued work in place, so a
+  -- spider whose goal keeps changing keeps its place in line instead of starving at the back.
+  local queue = storage.path_queue
   local dst = {}
-  for i = 1, #src do
-    if src[i].unit_number ~= item.unit_number then
-      dst[#dst + 1] = src[i]
+  local replaced = false
+  for i = 1, #queue do
+    if queue[i].unit_number ~= item.unit_number then
+      dst[#dst + 1] = queue[i]
+    elseif not replaced then
+      dst[#dst + 1] = item
+      replaced = true
     end
   end
-  dst[#dst + 1] = item
+  if not replaced then
+    dst[#dst + 1] = item
+  end
   storage.path_queue = dst
 end
 
