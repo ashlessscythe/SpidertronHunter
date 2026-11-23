@@ -2,6 +2,23 @@
 
 All notable changes to Spidertron Hunter are documented here.
 
+## [0.2.11] — 2026-11-22
+
+### Fixed
+
+- Hunters now actually use lake-aware paths when going after targets. Spiders previously used with Ctrl+RMB while Hunter was off kept stale path state that discarded every autonomous path result, leaving hunters walking straight lines.
+- Hunters re-targeting a far mob after a kill (or a target that moved far away) now travel with the lake-aware pathfinder instead of straight-line kiting hops.
+- Ctrl+RMB no longer races the vanilla remote event, which could override the lake-aware path.
+- Enemy cache pruning now sweeps the whole cache, and killing one enemy no longer forgets same-named neighbours in its chunk.
+- Dead spider records release their claims and path state; standalone path state is freed when a spidertron is destroyed.
+- Pathfinder busy responses back off instead of re-requesting every tick.
+- Hunter toolbar icon is no longer cropped; thumbnail reduced to 144x144.
+- AI records are sanitized on every mod/game version change.
+
+### Added
+
+- Debug mode logs path requests, results and drop reasons.
+
 ## [0.2.10] — 2026-11-22
 
 ### Changed
