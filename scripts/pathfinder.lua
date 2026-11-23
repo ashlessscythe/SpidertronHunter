@@ -14,6 +14,8 @@ local STUCK_TICKS = 180
 local STUCK_MOVE_EPS = 1.5
 --- How far to search for land when the raw goal sits on water.
 local WALKABLE_SEARCH_RADIUS = 32
+--- Delay before re-requesting a path the engine answered with try_again_later.
+local RETRY_BACKOFF_TICKS = 30
 
 local function ensure_path_only_table()
   storage.path_only = storage.path_only or {}
@@ -405,6 +407,8 @@ function M.process_queue()
     local spidertron = resolve_spidertron(item.unit_number)
     if not spidertron then
       -- drop
+    elseif item.not_before and game.tick < item.not_before then
+      remaining[#remaining + 1] = item
     elseif item.kind == "start" then
       local result = try_start_path(spidertron, item.goal, item.resolution or -3)
       if result == "budget" then
@@ -516,10 +520,12 @@ function M.on_path_finished(event)
   local unit_number = info.unit_number
   local statuses = storage.path_statuses[unit_number]
   if not statuses then
+    util.debug_log("path: result dropped (no status table: cancelled)", spidertron)
     return
   end
   local status = statuses[info.start_tick]
   if not status then
+    util.debug_log("path: result dropped (status gone: superseded/cancelled)", spidertron)
     return
   end
 
@@ -529,6 +535,7 @@ function M.on_path_finished(event)
 
   -- Abort if goal superseded, AI disabled, or player has taken control.
   if ai and ai.state == "idle" and not standalone then
+    util.debug_log("path: result dropped (spider idle)", spidertron)
     status.finished = status.finished + 1
     if status.finished >= status.total then
       statuses[info.start_tick] = nil
@@ -551,6 +558,7 @@ function M.on_path_finished(event)
     return
   end
   if ai and ai.keep_player_destination then
+    util.debug_log("path: result dropped (keep_player_destination)", spidertron)
     status.finished = status.finished + 1
     status.success = true
     if status.finished >= status.total then
@@ -561,6 +569,7 @@ function M.on_path_finished(event)
   if ai and ai.pending_goal
     and (ai.pending_goal.x ~= info.goal_position.x or ai.pending_goal.y ~= info.goal_position.y)
   then
+    util.debug_log("path: result dropped (goal superseded)", spidertron)
     status.finished = status.finished + 1
     status.success = true
     if status.finished >= status.total then
@@ -612,7 +621,20 @@ function M.on_path_finished(event)
   end
 
   if event.try_again_later then
-    retry_or_queue(info.resolution)
+    -- Engine pathfinder is saturated. Do NOT re-request immediately (that hammers
+    -- it every tick and starves long paths); back off and retry from the queue.
+    util.debug_log("path: pathfinder busy (try_again_later), backing off", spidertron)
+    enqueue({
+      kind = "retry",
+      unit_number = unit_number,
+      start_position = info.start_position,
+      target_position = info.target_position,
+      goal_position = info.goal_position,
+      resolution = info.resolution,
+      start_tick = info.start_tick,
+      leg_index = info.leg_index,
+      not_before = game.tick + RETRY_BACKOFF_TICKS,
+    })
     return
   end
 
