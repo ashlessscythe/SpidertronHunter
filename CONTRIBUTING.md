@@ -18,7 +18,17 @@ Pure Lua tests (no Factorio required):
 lua tests/run.lua
 ```
 
-CI runs the same suite via `.github/workflows/test.yml` on push/PR to `dev`.
+In-game tests ([factorio-test](https://github.com/GlassBricks/FactorioTest), headless Factorio 2.1 in Docker; needs Docker and a Factorio login, read from your local `player-data.json` or `FACTORIO_USERNAME` / `FACTORIO_TOKEN`):
+
+```bash
+scripts/run_factorio_tests.sh                                   # all non-visual tests
+scripts/run_factorio_tests.sh run --mod-path . --tag-whitelist visual   # visual scenarios, fast
+scripts/watch_factorio_tests.sh                                 # watch visual scenarios in a real window (local Factorio 2.1.24+)
+```
+
+Tests live in `tests/factorio/` and are registered in the `require("__factorio-test__/init")` call at the bottom of `control.lua`.
+
+CI runs the pure Lua suite via `.github/workflows/test.yml` on push/PR to `dev`.
 
 ## Packaging
 

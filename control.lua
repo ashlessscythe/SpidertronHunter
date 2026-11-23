@@ -302,3 +302,13 @@ if prototypes.custom_event["on_spidertron_replaced"] then
     manager_gui.mark_dirty()
   end)
 end
+
+-- In-game tests (only when the factorio-test mod is enabled; see scripts/run_factorio_tests.sh).
+if script.active_mods["factorio-test"] then
+  -- tests/factorio/watch_config.lua is written (and removed again) by scripts/watch_factorio_tests.sh.
+  local ok, watch_config = pcall(require, "tests/factorio/watch_config")
+  require("__factorio-test__/init")(
+    { "tests/factorio/smoke", "tests/factorio/hunter_demo" },
+    ok and type(watch_config) == "table" and watch_config or {}
+  )
+end

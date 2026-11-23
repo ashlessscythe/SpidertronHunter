@@ -2,6 +2,13 @@
 
 All notable changes to Spidertron Hunter are documented here.
 
+## [Unreleased]
+
+### Added
+
+- In-game test suite using [factorio-test](https://github.com/GlassBricks/FactorioTest), run headless in Docker (`scripts/run_factorio_tests.sh`) or step by step in a real Factorio window (`scripts/watch_factorio_tests.sh`).
+- Visual hunter scenarios: lone biter, biter nest, and a lake the hunter must walk around.
+
 ## [0.2.11] — 2026-11-22
 
 ### Fixed
