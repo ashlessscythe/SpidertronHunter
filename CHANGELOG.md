@@ -4,6 +4,16 @@ All notable changes to Spidertron Hunter are documented here.
 
 ## [Unreleased]
 
+## [0.2.13] — 2026-11-23
+
+### Fixed
+
+- A Hunter-AI spider ordered with Ctrl+right-click onto water now walks to the nearest shore and resumes hunting, instead of pushing at the shore for the whole travel budget. If only water is in range the order is refused with a "no path" message.
+
+### Added
+
+- Unit tests for the lake-order snapping, plus in-game scenarios for a hunter ordered into a lake and for a U-shaped bay (hunter and Ctrl+RMB go-to must leave through the mouth and go around an arm).
+
 ## [0.2.12] — 2026-11-23
 
 ### Fixed

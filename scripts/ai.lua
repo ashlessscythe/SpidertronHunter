@@ -570,15 +570,28 @@ function M.on_alt_remote(spidertron, position, player)
   end
 
   -- Hunter: lake-aware path (plain RMB keeps vanilla straight autopilot).
+  local enemy = nil
+  if spidertron.surface then
+    enemy = enemy_at_click(spidertron.surface, position, spidertron.force)
+  end
+
+  -- A ground order into a lake would leave the hunter pushing at the shore forever (MOVING only
+  -- ends on arrival). Snap it to the nearest shore, or refuse when there is only water around.
+  local ground_goal = nil
+  if not enemy then
+    ground_goal = pathfinder.snap_to_land(spidertron, position)
+    if not ground_goal then
+      if player then
+        util.flying_text(player, { "no-path" }, position)
+      end
+      return
+    end
+  end
+
   cancel_ai_pathing(ai)
   release_claim(ai)
   if spidertron.follow_target then
     spidertron.follow_target = nil
-  end
-
-  local enemy = nil
-  if spidertron.surface then
-    enemy = enemy_at_click(spidertron.surface, position, spidertron.force)
   end
 
   if enemy then
@@ -594,7 +607,7 @@ function M.on_alt_remote(spidertron, position, player)
     return
   end
 
-  ai.player_goal = { x = position.x, y = position.y }
+  ai.player_goal = { x = ground_goal.x, y = ground_goal.y }
   ai.keep_player_destination = nil
   ai.wait_reason = nil
   if ai.state == States.MOVING then

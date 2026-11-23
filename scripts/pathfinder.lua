@@ -228,6 +228,20 @@ function M.find_walkable_near(spidertron, goal, radius)
   return spidertron.surface.find_non_colliding_position(leg.name, goal, radius, 2)
 end
 
+--- Land position for a player-ordered goal. Returns the goal itself when the spider's legs are
+--- unavailable (cannot tell), the nearest walkable snap, or nil when only water is in range.
+--- @param spidertron LuaEntity
+--- @param goal MapPosition
+--- @return MapPosition?
+function M.snap_to_land(spidertron, goal)
+  local legs = spidertron.get_spider_legs()
+  local leg = legs and legs[1]
+  if not leg or not leg.valid then
+    return goal
+  end
+  return M.find_walkable_near(spidertron, goal, WALKABLE_SEARCH_RADIUS)
+end
+
 --- Pure path-target policy. Scouts must finish on land; hunters may use the raw
 --- goal when no walkable snap exists (crowded nests / re-engage).
 --- @param role string?

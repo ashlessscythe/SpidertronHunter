@@ -1179,6 +1179,7 @@ harness.run("ai.on_alt_remote hunter ground sets player_goal MOVING", function()
     },
     force = {},
     follow_target = nil,
+    get_spider_legs = function() return {} end,
   }
   local ai = persistence.create_ai(spider)
   ai.state = States.PATROL
@@ -1196,6 +1197,63 @@ harness.run("ai.on_alt_remote hunter ground sets player_goal MOVING", function()
   harness.assert_eq(go_calls[1].lake, true)
 
   movement.go_to = orig_go_to
+end)
+
+local function lake_hunter(unit_number, snap)
+  schema.ensure_storage()
+  storage.settings_cache = settings_mod.DEFAULTS
+  storage.spiders = {}
+  storage.destroy_regs = {}
+  storage.path_statuses = {}
+  storage.path_queue = {}
+  storage.target_claims = {}
+  game.tick = 100
+  local leg = { valid = true, name = "spidertron-leg-1", position = { x = 0, y = 0 } }
+  local spider = {
+    valid = true,
+    type = "spider-vehicle",
+    name = "spidertron",
+    unit_number = unit_number,
+    position = { x = 0, y = 0 },
+    surface_index = 1,
+    surface = {
+      find_nearest_enemy = function() return nil end,
+      find_entities_filtered = function() return {} end,
+      find_non_colliding_position = function() return snap end,
+    },
+    force = {},
+    follow_target = nil,
+    get_spider_legs = function() return { leg } end,
+  }
+  local ai = persistence.create_ai(spider)
+  ai.state = States.PATROL
+  ai.role = "hunter"
+  return spider, ai
+end
+
+harness.run("ai.on_alt_remote hunter ground order into a lake snaps player_goal to the shore", function()
+  local spider, ai = lake_hunter(43, { x = -26, y = 0 })
+  local orig_go_to = movement.go_to
+  local go_calls = {}
+  movement.go_to = function(_s, goal) go_calls[#go_calls + 1] = goal end
+  ai_mod.on_alt_remote(spider, { x = 0, y = 0 }, nil)
+  harness.assert_eq(ai.state, States.MOVING)
+  harness.assert_eq(ai.player_goal.x, -26)
+  movement.go_to = orig_go_to
+end)
+
+harness.run("ai.on_alt_remote hunter ground order with only water in range is refused", function()
+  local spider, ai = lake_hunter(44, nil)
+  local before = ai.state
+  ai_mod.on_alt_remote(spider, { x = 0, y = 0 }, nil)
+  harness.assert_eq(ai.state, before)
+  harness.assert_eq(ai.player_goal, nil)
+end)
+
+harness.run("pathfinder.snap_to_land passes the goal through when legs are unavailable", function()
+  local spider = { get_spider_legs = function() return {} end }
+  local goal = { x = 3, y = 4 }
+  harness.assert_true(require("scripts.pathfinder").snap_to_land(spider, goal) == goal)
 end)
 
 harness.run("ai.on_alt_remote idle no-op", function()

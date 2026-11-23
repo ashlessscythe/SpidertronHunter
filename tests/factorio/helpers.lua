@@ -44,41 +44,63 @@ local function clear_arena()
   end
 end
 
--- Lake: rectangle of water tiles. Original tile is restored by clear_lake().
-local lake_tiles_set
+-- Lake: union of water rectangles {x1, y1, x2, y2}. Original tile is restored by clear_lake().
+local lake_rects
 local original_tile
-local function make_lake(x1, y1, x2, y2)
+local function make_water(rects)
   original_tile = original_tile or surface().get_tile(0, 0).name
   local tiles = {}
-  for x = x1, x2 do
-    for y = y1, y2 do
-      tiles[#tiles + 1] = { name = "water", position = { x, y } }
+  for _, r in ipairs(rects) do
+    for x = r[1], r[3] do
+      for y = r[2], r[4] do
+        tiles[#tiles + 1] = { name = "water", position = { x, y } }
+      end
     end
   end
   surface().set_tiles(tiles)
-  lake_tiles_set = { x1, y1, x2, y2 }
+  lake_rects = rects
+end
+
+local function make_lake(x1, y1, x2, y2)
+  make_water({ { x1, y1, x2, y2 } })
+end
+
+-- U-shaped bay open to the west: land inside the U (x -25..14, y -29..29) is enclosed by water to
+-- the north, south and east, so reaching the far side means leaving through the mouth and going
+-- around the arms (|y| > 40).
+local function make_bay()
+  make_water({
+    { -25, -40, 25, -30 }, -- north arm
+    { -25, 30, 25, 40 }, -- south arm
+    { 15, -40, 25, 40 }, -- back wall
+  })
 end
 
 local function clear_lake()
-  if not lake_tiles_set then return end
-  local x1, y1, x2, y2 = table.unpack(lake_tiles_set)
+  if not lake_rects then return end
   local tiles = {}
-  for x = x1, x2 do
-    for y = y1, y2 do
-      tiles[#tiles + 1] = { name = original_tile, position = { x, y } }
+  for _, r in ipairs(lake_rects) do
+    for x = r[1], r[3] do
+      for y = r[2], r[4] do
+        tiles[#tiles + 1] = { name = original_tile, position = { x, y } }
+      end
     end
   end
   surface().set_tiles(tiles)
-  lake_tiles_set = nil
+  lake_rects = nil
 end
 
 -- Body may overhang the shore (legs stay on land), so only count it as "in the lake"
--- when the center is more than `margin` tiles inside the lake rectangle.
+-- when the center is more than `margin` tiles inside a water rectangle.
 local function deep_in_lake(entity, margin)
-  if not lake_tiles_set then return false end
-  local x1, y1, x2, y2 = table.unpack(lake_tiles_set)
+  if not lake_rects then return false end
   local p = entity.position
-  return p.x > x1 + margin and p.x < x2 + 1 - margin and p.y > y1 + margin and p.y < y2 + 1 - margin
+  for _, r in ipairs(lake_rects) do
+    if p.x > r[1] + margin and p.x < r[3] + 1 - margin and p.y > r[2] + margin and p.y < r[4] + 1 - margin then
+      return true
+    end
+  end
+  return false
 end
 
 local function spawn_nest(cx, cy, spawners, biters)
@@ -102,6 +124,7 @@ end
 
 H.park_character = park_character
 H.zoom_to, H.clear_arena, H.make_lake, H.clear_lake = zoom_to, clear_arena, make_lake, clear_lake
+H.make_water, H.make_bay = make_water, make_bay
 H.deep_in_lake, H.spawn_nest, H.spawn_hunter, H.count_enemies = deep_in_lake, spawn_nest, spawn_hunter, count_enemies
 
 --- Spawn an enemy entity (stationary things like worms/spawners are best for ordering tests).
