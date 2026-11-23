@@ -98,6 +98,12 @@ script.on_event(defines.events.on_script_path_request_finished, function(event)
   pathfinder.on_path_finished(event)
 end)
 
+-- Ctrl+RMB raises BOTH the vanilla remote event and our custom input. If the
+-- custom input ran first, the vanilla handler must not then park the hunter in
+-- WAITING/"player-remote" (which makes the pathfinder drop the lake-aware result
+-- and leaves the straight-line autopilot in charge). Transient, same-tick only.
+local alt_remote_tick = {}
+
 script.on_event(defines.events.on_player_used_spidertron_remote, function(event)
   local player = game.get_player(event.player_index)
   if not player or not player.spidertron_remote_selection then
@@ -106,7 +112,9 @@ script.on_event(defines.events.on_player_used_spidertron_remote, function(event)
   local position = event.position
   for _, spidertron in pairs(player.spidertron_remote_selection) do
     if spidertron and spidertron.valid then
-      ai.on_player_remote(spidertron, position, player)
+      if alt_remote_tick[spidertron.unit_number] ~= game.tick then
+        ai.on_player_remote(spidertron, position, player)
+      end
     end
   end
 end)
@@ -130,6 +138,7 @@ script.on_event("sh-use-alt-spidertron-remote", function(event)
   end
   for _, spidertron in pairs(player.spidertron_remote_selection) do
     if spidertron and spidertron.valid then
+      alt_remote_tick[spidertron.unit_number] = game.tick
       if ai.is_enabled(spidertron) then
         ai.on_alt_remote(spidertron, position, player)
       else

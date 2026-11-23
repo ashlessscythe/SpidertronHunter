@@ -536,6 +536,7 @@ function M.on_path_finished(event)
     return
   end
   if ai and ai.state == "waiting" and not standalone then
+    util.debug_log("path: result DROPPED (spider is waiting / player-remote)", spidertron)
     status.finished = status.finished + 1
     if status.finished >= status.total then
       statuses[info.start_tick] = nil
@@ -616,6 +617,7 @@ function M.on_path_finished(event)
   end
 
   if not event.path then
+    util.debug_log(string.format("path: no path (res %d) unit %d", info.resolution, unit_number), spidertron)
     if info.resolution < 1 then
       retry_or_queue(info.resolution + 2)
       return
@@ -627,6 +629,7 @@ function M.on_path_finished(event)
       -- Hunters: last-resort direct to a walkable snap, else the original goal
       -- (matches pre-0.1.22 re-engage / combat behavior).
       local is_scout = ai and ai.role == "scout"
+      util.debug_log("path: exhausted, " .. (is_scout and "scout fail" or "hunter DIRECT fallback"), spidertron)
       if is_scout then
         mark_path_failed(spidertron, info.goal_position)
       else
@@ -649,6 +652,7 @@ function M.on_path_finished(event)
     return
   end
 
+  util.debug_log("path: applying lake-aware path", spidertron)
   -- Success: apply thinned waypoints.
   spidertron.follow_target = nil
   spidertron.autopilot_destination = nil
