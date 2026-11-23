@@ -14,7 +14,7 @@ Ideas and planned work for Spidertron Hunter. Nothing here is a commitment; item
 ## Quality and performance
 
 - [x] **Split `scripts/ai.lua`** into orchestration, state handlers and shared helpers.
-- [ ] **Pathfinding robustness** (queue starvation fixed; still to do): stuck recovery, water crossings, path-budget starvation with many hunters.
+- [ ] **Pathfinding robustness** (queue starvation fixed; unit and lake scenario tests added; still to do): non-rectangular lakes/bays and in-game stuck-recovery scenarios.
 - [ ] **Multiplayer** (per-player fleet manager window position fixed; still to do): test multiple forces/surfaces and `gui.lua` state.
 - [ ] **Compatibility**: Space Age planets and platforms (gravity, enemies on Gleba/Fulgora); extend the denylist for other spidertron mods.
 

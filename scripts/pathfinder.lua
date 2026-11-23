@@ -348,6 +348,11 @@ local function try_start_path(spidertron, goal, resolution)
     mark_path_failed(spidertron, goal)
     return "unreachable"
   end
+  -- A plain Ctrl+RMB go-to (no AI) has no combat range to justify ending on water: finish
+  -- on the walkable snap instead of pushing at the shore toward a goal inside a lake forever.
+  if not ai and walkable then
+    final_goal = walkable
+  end
 
   local start_tick = game.tick
   storage.path_statuses[spidertron.unit_number] = storage.path_statuses[spidertron.unit_number] or {}
@@ -383,10 +388,13 @@ end
 --- @return boolean started  false when unreachable
 function M.request_path_to(spidertron, goal, resolution)
   resolution = resolution or -3
-  M.clear_queue_for(spidertron.unit_number)
 
   local result = try_start_path(spidertron, goal, resolution)
+  if result ~= "budget" then
+    M.clear_queue_for(spidertron.unit_number)
+  end
   if result == "budget" then
+    -- enqueue() replaces any older job for this spider in place, keeping its queue position.
     -- Do not walk straight into water — wait for a free path slot.
     spidertron.follow_target = nil
     spidertron.autopilot_destination = nil

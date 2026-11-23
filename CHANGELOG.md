@@ -6,8 +6,9 @@ All notable changes to Spidertron Hunter are documented here.
 
 ### Fixed
 
+- Ctrl+right-click (Hunter off) on a spot inside a lake now ends on the nearest shore instead of leaving the spider pushing at the water's edge toward the clicked point forever.
 - Fleet manager window position is now remembered per player instead of shared, so multiplayer clients no longer move each other's window.
-- A spider whose path request is queued keeps its place in line when its goal changes, so it can't be starved by a full path budget.
+- A spider whose path request is queued keeps its place in line when its goal changes (including via `request_path_to`), so it can't be starved by a full path budget.
 - Hunters now return home after combat even when their target dies to auto-targeting while they are still walking toward it; previously they idled at the kill site forever.
 - "Spawners first" and "Units first" target priority now applies to a hunter's first target; before, the nearest enemy always won until the enemy cache warmed up.
 
@@ -17,6 +18,8 @@ All notable changes to Spidertron Hunter are documented here.
 
 ### Added
 
+- Pathfinder unit tests (`tests/pathfinder_spec.lua`) against a fake lake: water snapping for hunters vs scouts, budget/queue ordering, busy back-off, resolution retries, exhausted-path fallbacks, waypoint thinning and stuck recovery.
+- In-game lake scenarios (`tests/factorio/lake_paths.lua`): Ctrl+RMB around a lake, goal inside a lake, scout waypoint across a lake, hunter return trip, and six hunters sharing the path budget.
 - In-game test suite using [factorio-test](https://github.com/GlassBricks/FactorioTest), run headless in Docker (`scripts/run_factorio_tests.sh`) or step by step in a real Factorio window (`scripts/watch_factorio_tests.sh`).
 - Visual hunter scenarios: lone biter, biter nest, and a lake the hunter must walk around.
 - CI job running the in-game tests on headless Factorio.

@@ -1492,6 +1492,8 @@ harness.run("pathfinder.on_path_finished applies path for active hunter despite 
   harness.assert_eq(storage.path_only[321], nil)
 end)
 
+require("tests.pathfinder_spec")
+
 ---------------------------------------------------------------------------
 
 if not harness.summary() then

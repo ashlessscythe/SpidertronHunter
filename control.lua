@@ -308,7 +308,7 @@ if script.active_mods["factorio-test"] then
   -- tests/factorio/watch_config.lua is written (and removed again) by scripts/watch_factorio_tests.sh.
   local ok, watch_config = pcall(require, "tests/factorio/watch_config")
   require("__factorio-test__/init")(
-    { "tests/factorio/smoke", "tests/factorio/hunter_demo", "tests/factorio/hunter_behavior" },
+    { "tests/factorio/smoke", "tests/factorio/hunter_demo", "tests/factorio/hunter_behavior", "tests/factorio/lake_paths" },
     ok and type(watch_config) == "table" and watch_config or {}
   )
 end
