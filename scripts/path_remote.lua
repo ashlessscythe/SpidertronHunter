@@ -9,6 +9,7 @@ local M = {}
 --- @param goal MapPosition
 local function ensure_path_only(spidertron, goal)
   storage.path_only = storage.path_only or {}
+  pathfinder.track_destroy(spidertron)
   storage.path_only[spidertron.unit_number] = {
     entity = spidertron,
     pending_goal = { x = goal.x, y = goal.y },

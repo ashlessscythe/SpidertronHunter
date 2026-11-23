@@ -28,6 +28,22 @@ local function get_path_only(unit_number)
   return storage.path_only[unit_number]
 end
 
+--- @param unit_number integer
+local function clear_path_only(unit_number)
+  if storage.path_only then
+    storage.path_only[unit_number] = nil
+  end
+end
+
+--- Register a standalone (AI-off) spider so its path_only/path state is dropped
+--- when the entity is destroyed (AI spiders are registered by persistence.create_ai).
+--- @param spidertron LuaEntity
+function M.track_destroy(spidertron)
+  storage.destroy_regs = storage.destroy_regs or {}
+  local reg = script.register_on_object_destroyed(spidertron)
+  storage.destroy_regs[reg] = spidertron.unit_number
+end
+
 --- @param spidertron LuaEntity
 --- @return table? ai
 --- @return table? path_only
@@ -231,7 +247,9 @@ local function mark_path_failed(spidertron, goal)
     ai.path_start_tick = nil
     ai.pending_goal = nil
   end
-  if path_only then
+  if path_only and not ai then
+    clear_path_only(spidertron.unit_number)
+  elseif path_only then
     path_only.pending_goal = nil
     path_only.path_start_tick = nil
   end
@@ -256,18 +274,12 @@ local function mark_pending(spidertron, goal, start_tick)
     path_only.pending_goal = { x = goal.x, y = goal.y }
   else
     ensure_path_only_table()
+    M.track_destroy(spidertron)
     storage.path_only[spidertron.unit_number] = {
       entity = spidertron,
       pending_goal = { x = goal.x, y = goal.y },
       path_start_tick = start_tick,
     }
-  end
-end
-
---- @param unit_number integer
-local function clear_path_only(unit_number)
-  if storage.path_only then
-    storage.path_only[unit_number] = nil
   end
 end
 
@@ -283,6 +295,9 @@ local function try_start_path(spidertron, goal, resolution)
     spidertron.follow_target = nil
     spidertron.autopilot_destination = walkable
     mark_pending(spidertron, walkable, nil)
+    if not ai then
+      clear_path_only(spidertron.unit_number)
+    end
     return "direct"
   end
 
@@ -300,6 +315,9 @@ local function try_start_path(spidertron, goal, resolution)
     spidertron.follow_target = nil
     spidertron.autopilot_destination = walkable
     mark_pending(spidertron, walkable, nil)
+    if not ai then
+      clear_path_only(spidertron.unit_number)
+    end
     return "direct"
   end
 

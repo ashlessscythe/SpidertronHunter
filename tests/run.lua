@@ -1422,6 +1422,45 @@ harness.run("persistence.release_ai_resources frees claim, path status and queue
   harness.assert_eq(storage.path_queue[1].unit_number, 43)
 end)
 
+harness.run("persistence.on_object_destroyed clears standalone path_only state", function()
+  reset_cache_storage()
+  storage.destroy_regs = { [5] = 77 }
+  storage.path_only = { [77] = { pending_goal = { x = 1, y = 1 } } }
+  storage.path_statuses[77] = { [1] = {} }
+  persistence_mod.on_object_destroyed({ registration_number = 5 })
+  harness.assert_eq(storage.path_only[77], nil)
+  harness.assert_eq(storage.path_statuses[77], nil)
+  harness.assert_eq(storage.destroy_regs[5], nil)
+end)
+
+local function png_size(path)
+  local f = assert(io.open(path, "rb"), "missing " .. path)
+  local head = f:read(24)
+  f:close()
+  local w1, w2, w3, w4, h1, h2, h3, h4 = head:byte(17, 24)
+  return w1 * 16777216 + w2 * 65536 + w3 * 256 + w4, h1 * 16777216 + h2 * 65536 + h3 * 256 + h4
+end
+
+harness.run("shortcut icons are square and match declared icon_size", function()
+  local expected = {
+    ["graphics/shortcut/hunter-x56.png"] = 56,
+    ["graphics/shortcut/hunter-x24.png"] = 24,
+    ["graphics/shortcut/manager-x56.png"] = 56,
+    ["graphics/shortcut/manager-x24.png"] = 24,
+  }
+  for path, size in pairs(expected) do
+    local w, h = png_size(path)
+    harness.assert_eq(w, size, path .. " width")
+    harness.assert_eq(h, size, path .. " height")
+  end
+end)
+
+harness.run("thumbnail.png is 144x144", function()
+  local w, h = png_size("thumbnail.png")
+  harness.assert_eq(w, 144)
+  harness.assert_eq(h, 144)
+end)
+
 ---------------------------------------------------------------------------
 
 if not harness.summary() then

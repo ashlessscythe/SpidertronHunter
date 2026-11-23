@@ -62,6 +62,9 @@ function M.release_ai_resources(unit_number, ai)
   if storage.path_statuses[unit_number] then
     storage.path_statuses[unit_number] = nil
   end
+  if storage.path_only then
+    storage.path_only[unit_number] = nil
+  end
   pathfinder.clear_queue_for(unit_number)
 end
 
@@ -82,6 +85,8 @@ function M.on_object_destroyed(event)
     return
   end
   storage.destroy_regs[event.registration_number] = nil
+  -- Also covers standalone (AI-off) spiders that only have path_only state.
+  M.release_ai_resources(unit_number, storage.spiders[unit_number])
   M.remove_ai(unit_number)
 end
 
