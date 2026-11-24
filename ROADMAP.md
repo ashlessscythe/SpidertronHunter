@@ -2,6 +2,21 @@
 
 Ideas and planned work for Spidertron Hunter. Nothing here is a commitment; items are roughly ordered by priority within each section. Completed work is recorded in `CHANGELOG.md`.
 
+## Next up
+
+Suggested order (2026-11-23):
+
+1. [ ] **"Nearest" mode fallback**: when the nearest nest is too dangerous, fall back to the next safe target instead of idling.
+2. [ ] **50+ hunter UPS stress test**: check the per-tick budgets hold before building squads.
+3. [ ] **Ammo and fuel logic**: low fuel return, per-weapon ammo, "minimum loadout" setting.
+4. [ ] **Mid-fight retreat** from a nest that turns out worse than judged.
+5. [ ] **Squads / formations**, then **guard zones**.
+6. [ ] **In-game stuck-recovery tests**, then restock / scout / migration / save-load tests.
+7. [ ] **Multiplayer and Space Age** compatibility checks.
+8. [ ] README troubleshooting section and locale key check.
+
+Details for each item are in the sections below.
+
 ## Gameplay
 
 - [ ] **Squads / formations**: squad leader, shared retreat, focus-fire. (`docs/notes.md` already keeps the FSM extensible for this.)
