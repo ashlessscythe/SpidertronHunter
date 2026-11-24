@@ -157,3 +157,18 @@ harness.run("alerts: settings default and locale keys exist", function()
     harness.assert_true(cfg:find(key .. "=", 1, true) ~= nil, "missing locale key " .. key)
   end
 end)
+
+harness.run("alerts: out-of-ammo and needs-repair are important and re-alert only rarely", function()
+  setup("important")
+  harness.assert_true(alerts.is_enabled("out-of-ammo"))
+  harness.assert_true(alerts.is_enabled("needs-repair"))
+  local force, calls = make_force(1)
+  local spider = make_spider(force, "A")
+  local ai = {}
+  harness.assert_true(alerts.notify(spider, "out-of-ammo", ai))
+  game.tick = game.tick + alerts.COOLDOWN_TICKS + 1 -- normal cooldown has passed...
+  harness.assert_false(alerts.notify(spider, "out-of-ammo", ai)) -- ...but these repeat far less often
+  game.tick = game.tick + 18000
+  harness.assert_true(alerts.notify(spider, "out-of-ammo", ai))
+  harness.assert_eq(#calls, 2)
+end)

@@ -91,6 +91,7 @@ function M.migrate_ai_records()
       ai.stuck_count = nil
       ai.stuck_count_pos = nil
       ai.alert_ticks = nil
+      ai.threat_zones = nil
       ai.path_start_tick = nil
       ai.pending_goal = nil
       ai.player_goal = nil

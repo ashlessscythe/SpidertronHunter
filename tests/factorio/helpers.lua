@@ -122,6 +122,36 @@ local function count_enemies()
   return #surface().find_entities_filtered({ force = "enemy", area = { { -150, -150 }, { 150, 150 } } })
 end
 
+--- Put personal laser defense plus charged batteries into a spidertron's grid. Returns the grid
+--- (so tests can read battery energy to see whether the lasers actually fired).
+--- Note: discharge defense is deliberately not added; it only fires from the player's discharge
+--- remote, so the hunter AI cannot use it.
+function H.equip_lasers(spider, lasers, batteries)
+  local grid = spider.grid
+  assert(grid, "spidertron has no equipment grid")
+  for _ = 1, lasers or 4 do
+    assert(grid.put({ name = "personal-laser-defense-equipment" }), "no room for laser defense")
+  end
+  for _ = 1, batteries or 6 do
+    assert(grid.put({ name = "battery-mk2-equipment" }), "no room for battery")
+  end
+  for _, eq in pairs(grid.equipment) do
+    if eq.max_energy and eq.max_energy > 0 then eq.energy = eq.max_energy end
+  end
+  return grid
+end
+
+--- Fraction of battery energy left in a grid (1 = untouched).
+function H.battery_fraction(grid)
+  local cur, max = 0, 0
+  for _, eq in pairs(grid.equipment) do
+    if eq.type == "battery-equipment" then
+      cur, max = cur + eq.energy, max + eq.max_energy
+    end
+  end
+  return max > 0 and cur / max or 1
+end
+
 H.park_character = park_character
 H.zoom_to, H.clear_arena, H.make_lake, H.clear_lake = zoom_to, clear_arena, make_lake, clear_lake
 H.make_water, H.make_bay = make_water, make_bay

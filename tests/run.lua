@@ -1552,6 +1552,9 @@ end)
 
 require("tests.pathfinder_spec")
 require("tests.alerts_spec")
+require("tests.threat_spec")
+require("tests.resupply_spec")
+require("tests.combat_spec")
 
 ---------------------------------------------------------------------------
 

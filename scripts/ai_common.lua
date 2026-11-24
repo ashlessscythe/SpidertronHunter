@@ -216,7 +216,33 @@ local function retreat_origin_position(ai)
   return { x = origin.x, y = origin.y }
 end
 
+--- Why this hunter should not go back out yet after a restock gave up: still below the ammo
+--- threshold, or still below the retreat health threshold. Without this a hunter with no
+--- resupply ping-pongs home <-> the field (even firing with zero ammo).
+--- @param ai table
+--- @return "no-ammo"|"damaged"|nil
+local function resupply_blocker(ai)
+  if is_scout(ai) then
+    return nil
+  end
+  local spidertron = ai.entity
+  if not util.is_valid_spidertron(spidertron) then
+    return nil
+  end
+  local cfg = settings_mod.get()
+  local ammo_threshold = cfg.restock_ammo_percent or 0
+  if cfg.restock_enabled and ammo_threshold > 0 and logistics.ammo_below_threshold(spidertron, ammo_threshold, ai) then
+    return "no-ammo"
+  end
+  local retreat_threshold = cfg.retreat_health_percent or 0
+  if retreat_threshold > 0 and util.defense_ratio(spidertron, cfg.retreat_include_shields) * 100 < retreat_threshold then
+    return "damaged"
+  end
+  return nil
+end
+
 C.is_scout = is_scout
+C.resupply_blocker = resupply_blocker
 C.mark_manager_dirty = mark_manager_dirty
 C.abort_scout_if_armed = abort_scout_if_armed
 C.after_combat_clear = after_combat_clear

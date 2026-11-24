@@ -4,8 +4,25 @@ All notable changes to Spidertron Hunter are documented here.
 
 ## [Unreleased]
 
+## [0.2.14] - 2026-11-23
+
+### Fixed
+
+- Hunters no longer ping-pong between home and the field when a restock gives up (no logistics network, or the wait timed out) with ammo still low or health still below the retreat threshold. Before, they resumed hunting immediately, headed back after a few seconds (even firing with empty launchers), and repeated every restock timeout, so later nests were barely fought. They now wait at home until ammo or health recover, then resume, and raise an "out of ammo" / "needs repair" alert (repeated at most every 5 minutes).
+
+### Changed
+
+- Threat awareness is less timid: capacity is now 1 point per 30 hp (a full-health spidertron ~100 points at Normal, ~50 at Cautious). In the multi-nest scenario a nest scoring 19 cost a full-health hunter only ~250 hp, yet Cautious used to refuse it and leave the later nests untouched.
+
 ### Added
 
+- "Close in with lasers" setting (off by default): hunters carrying personal laser defense fight at 12 tiles, inside laser range.
+- Multi-nest campaigns now also cover every moving combat style (strafe, circle, flank; hold is stationary by design) and spidertrons carrying personal laser defense + batteries, at the default combat range and at a laser-friendly 12. Lasers shortened the clear of three hard nests from about 140-160 s (rockets only) to about 100 s at the default range and about 80 s at range 12, at the cost of noticeably more damage taken at range 12.
+- Multi-nest campaign scenarios (`tests/factorio/multi_nest.lua`): three nests in a row with threat awareness off / normal / cautious, easy and hard nests, default and stocked ammo. They check that nests are cleared, the hunter keeps kiting, never attacks from a standstill for long, and does not ping-pong when ammo runs out.
+- Unit tests for the resupply blocker and the restocking → waiting → patrol flow.
+
+- Threat awareness: hunters now judge a nest before attacking. The worms and spawners within 40 tiles of a candidate target are scored (small worm 3, medium 6, big 12, behemoth 30, spawner 1) against the hunter's current hull + shield health (30 hp per point; a full-health spidertron is about 100). A nest scoring higher is skipped for a minute, and the hunter raises an "is avoiding a nest" alert. A damaged hunter becomes more cautious automatically.
+- New runtime-global setting **Threat awareness** (Off / Normal / Cautious, default Normal). Cautious skips at half the danger Normal does. Scouts are unaffected.
 - Alerts: a spidertron that retreats at low health, gets stuck (repeated re-paths in the same spot) or is destroyed now alerts you. Retreat and stuck use Factorio's custom alerts (edge-of-screen icon, click to locate); a destroyed spidertron prints a chat line with a map ping. Each kind is throttled per spider to 30 s.
 - New runtime-global setting **Alerts** (Off / Important / All). Important is the default; All also alerts when a hunter heads home for ammo.
 - Unit tests for alert levels, throttling, stuck counting and the death message, and in-game checks that a real retreat raises (or, with alerts off, doesn't raise) a custom alert.

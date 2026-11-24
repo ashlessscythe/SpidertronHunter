@@ -5,7 +5,8 @@ Ideas and planned work for Spidertron Hunter. Nothing here is a commitment; item
 ## Gameplay
 
 - [ ] **Squads / formations**: squad leader, shared retreat, focus-fire. (`docs/notes.md` already keeps the FSM extensible for this.)
-- [ ] **Threat awareness**: judge nests by worms, spawner count and evolution tier; skip or retreat from nests the hunter can't beat.
+- [x] **Threat awareness**: skip nests whose worm/spawner danger exceeds the hunter's health (see `scripts/threat.lua`). Follow-ups: weigh weapons and ammo type, retreat mid-fight from a nest that turns out worse than judged, and in "nearest" mode fall back to the next-nearest safe target instead of idling.
+- [x] **Laser-aware combat range**: the "Close in with lasers" setting (off by default) makes hunters with personal laser defense fight at 12 tiles. Follow-up: pick the range per weapon loadout.
 - [ ] **Ammo and fuel logic**: return home on low fuel or low ammo per weapon type; "minimum loadout" setting.
 - [ ] **Support roles**: medic/repair follower; pollution-source clearing.
 - [ ] **Hunter patrol routes / guard zones**: radius-limited hunting instead of only a home point.

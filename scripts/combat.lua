@@ -76,6 +76,26 @@ local function angle_between(from, to)
   return atan2(from.y - to.y, from.x - to.x)
 end
 
+local LASER_RANGE = 12
+local LASER_CHECK_TICKS = 300
+
+--- Preferred distance from the target. With "Close in with lasers" on and personal laser defense in
+--- the grid, hunters fight inside laser range (laser range is 15) instead of the configured one.
+--- @param ai table?
+--- @param spidertron LuaEntity
+--- @param cfg table
+--- @return number
+function M.effective_range(ai, spidertron, cfg)
+  local range = cfg.combat_range or 20
+  if not cfg.laser_aware or range <= LASER_RANGE or not ai then return range end
+  if not ai.laser_check_tick or game.tick >= ai.laser_check_tick then
+    ai.laser_check_tick = game.tick + LASER_CHECK_TICKS
+    local grid = spidertron.valid and spidertron.grid
+    ai.has_lasers = grid and grid.valid and grid.find("personal-laser-defense-equipment") ~= nil or false
+  end
+  return ai.has_lasers and LASER_RANGE or range
+end
+
 --- Pick a combat waypoint around the target.
 --- @param spidertron LuaEntity
 --- @param target LuaEntity
@@ -83,7 +103,7 @@ end
 --- @return MapPosition?
 function M.pick_position(spidertron, target, ai)
   local cfg = settings_mod.get()
-  local range = cfg.combat_range or 20
+  local range = M.effective_range(ai, spidertron, cfg)
   local style = ai.combat_style or cfg.combat_style or "strafe"
   local avoid_acid = cfg.avoid_acid ~= false
   local tp = target.position
@@ -140,7 +160,7 @@ end
 --- @return boolean
 function M.should_reposition(ai, spidertron, target)
   local cfg = settings_mod.get()
-  local range = cfg.combat_range or 20
+  local range = M.effective_range(ai, spidertron, cfg)
   local move_interval = cfg.combat_move_interval or 90
   local pause = cfg.combat_pause_ticks or 45
   local style = ai.combat_style or cfg.combat_style or "strafe"

@@ -263,3 +263,27 @@ Pathfinder uses it for building-aware routing. Attribution in NOTICE.
 `ai_states.lua` (registered on require) and shared helpers in `ai_common.lua`. Helpers that
 need `ai.disable` use `common.disable`, set by `ai.lua`, to avoid a circular require
 (Factorio forbids runtime require).
+
+## Lasers and area defence
+
+Personal laser defense is automatic with a 15 tile range; discharge defense (range 10) is *not*
+automatic and only fires from the player's discharge-defense remote, so the hunter AI cannot use it.
+The default combat range (22) is outside laser range, so lasers contribute little unless the combat
+range is lowered (campaign: ~100 s at 22, ~80 s at 12 but about 3x the damage taken).
+The `sh-laser-aware-range` setting (off by default) does this per hunter: `combat.effective_range`
+returns 12 when the grid holds personal laser defense (checked every 300 ticks, cached on the AI record).
+
+## Restock give-up
+
+`RESTOCKING` ends on success *or* timeout. On timeout with ammo/health still below their
+thresholds (`ai_common.resupply_blocker`) the hunter goes to `WAITING` with `wait_reason`
+`no-ammo` / `damaged` and only resumes once the blocker clears. Resuming immediately made hunters
+ping-pong home <-> field every restock timeout.
+
+## Threat awareness
+
+`scripts/threat.lua` scores enemy turrets/spawners within 40 tiles of a candidate target
+(`points`) and compares it with the hunter's hull + shield health (`capacity`). Verdicts are kept
+per spider in `ai.threat_zones` (avoid 60 s, safe 10 s, max 16) so scans do not re-query the area.
+The scanner filters every candidate through `acceptable()`. Point values and the hp-per-point
+ratio (now 30 hp/point, calibrated from `tests/factorio/multi_nest.lua`) are tuning guesses, so adjust them in `threat.lua` if hunters are too brave or timid.

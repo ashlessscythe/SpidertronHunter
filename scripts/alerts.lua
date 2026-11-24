@@ -11,7 +11,11 @@ M.STUCK_REPATHS_BEFORE_ALERT = 3
 
 local LEVELS = { off = 0, important = 1, all = 2 }
 --- Minimum level at which each kind is shown.
-local KIND_LEVEL = { died = 1, retreat = 1, stuck = 1, ["low-ammo"] = 2 }
+local KIND_LEVEL = {
+  died = 1, retreat = 1, stuck = 1, ["too-dangerous"] = 1, ["out-of-ammo"] = 1, ["needs-repair"] = 1, ["low-ammo"] = 2,
+}
+--- Conditions that persist until the player acts re-alert far less often.
+local KIND_COOLDOWN = { ["out-of-ammo"] = 18000, ["needs-repair"] = 18000 }
 
 local ICON = { type = "item", name = "spidertron" }
 local DIED_COLOR = { r = 1, g = 0.4, b = 0.3 }
@@ -40,7 +44,7 @@ end
 local function pass_cooldown(ai, kind)
   ai.alert_ticks = ai.alert_ticks or {}
   local last = ai.alert_ticks[kind]
-  if last and game.tick - last < M.COOLDOWN_TICKS then
+  if last and game.tick - last < (KIND_COOLDOWN[kind] or M.COOLDOWN_TICKS) then
     return false
   end
   ai.alert_ticks[kind] = game.tick
@@ -49,7 +53,7 @@ end
 
 --- Show an alert for a live spidertron.
 --- @param spidertron LuaEntity
---- @param kind "retreat"|"stuck"|"low-ammo"
+--- @param kind "retreat"|"stuck"|"low-ammo"|"too-dangerous"|"out-of-ammo"|"needs-repair"
 --- @param ai table
 --- @param detail any? extra locale parameter (e.g. health percent)
 --- @return boolean shown

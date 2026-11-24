@@ -31,6 +31,7 @@ Designed to feel like a natural extension of vanilla gameplay, the focus is auto
 - 🏠 Automatically returns home to repair and restock
 - 🔫 Returns home when ammo runs low (configurable %)
 - 🛡️ Tactical retreat with optional re-engage
+- 🧠 Threat awareness: hunters skip nests with more worms than they can survive
 - 🔔 Alerts when a spidertron retreats, gets stuck or is destroyed (click the alert to jump to it)
 - 🧭 Scout mode explores and discovers enemy bases
 - 👥 Fleet Manager for controlling multiple Spidertrons

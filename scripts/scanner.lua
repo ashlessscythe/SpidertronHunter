@@ -2,6 +2,7 @@
 local util = require("scripts.util")
 local settings_mod = require("scripts.settings")
 local targeting = require("scripts.targeting")
+local threat = require("scripts.threat")
 
 local M = {}
 
@@ -54,6 +55,12 @@ function M.scan_for_enemy(ai)
   local max_pursuit = cfg.max_pursuit_distance
   local spider_pos = spidertron.position
 
+  --- In range and policy-allowed, and not a nest this hunter is unlikely to beat.
+  local function acceptable(enemy_pos)
+    return allowed_target(home, spider_pos, enemy_pos, max_pursuit, radius)
+      and threat.judge(ai, spidertron, enemy_pos)
+  end
+
   local cached = targeting.find_near(
     spidertron.surface_index,
     spider_pos,
@@ -62,7 +69,7 @@ function M.scan_for_enemy(ai)
     cfg.enemy_prioritization
   )
   if cached and cached.entity and cached.entity.valid then
-    if allowed_target(home, spider_pos, cached.position, max_pursuit, radius) then
+    if acceptable(cached.position) then
       return cached.entity
     end
   end
@@ -80,7 +87,7 @@ function M.scan_for_enemy(ai)
     })
     for i = 1, #found do
       local e = found[i]
-      if e.valid and allowed_target(home, spider_pos, e.position, max_pursuit, radius) then
+      if e.valid and acceptable(e.position) then
         local rank = TYPE_PRIORITY[e.type] or 50
         if cfg.enemy_prioritization == "units-first" and e.type == "unit" then
           rank = 0
@@ -108,7 +115,7 @@ function M.scan_for_enemy(ai)
   used = used + 1
 
   if nearest and nearest.valid then
-    if allowed_target(home, spider_pos, nearest.position, max_pursuit, radius) then
+    if acceptable(nearest.position) then
       targeting.remember(nearest)
       return nearest
     end
@@ -133,7 +140,7 @@ function M.scan_for_enemy(ai)
     for i = 1, #found do
       local e = found[i]
       if e.valid and e.force and spidertron.force.is_enemy(e.force) then
-        if allowed_target(home, spider_pos, e.position, max_pursuit, radius) then
+        if acceptable(e.position) then
           local rank = TYPE_PRIORITY[e.type] or 50
           if cfg.enemy_prioritization == "units-first" and e.type == "unit" then
             rank = 0

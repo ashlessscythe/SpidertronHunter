@@ -123,6 +123,14 @@ data:extend({
   },
   {
     type = "string-setting",
+    name = "sh-threat-awareness",
+    setting_type = "runtime-global",
+    default_value = "normal",
+    allowed_values = { "off", "normal", "cautious" },
+    order = "c-a1",
+  },
+  {
+    type = "string-setting",
     name = "sh-alert-level",
     setting_type = "runtime-global",
     default_value = "important",
@@ -171,6 +179,13 @@ data:extend({
     minimum_value = 8,
     maximum_value = 64,
     order = "d-a",
+  },
+  {
+    type = "bool-setting",
+    name = "sh-laser-aware-range",
+    setting_type = "runtime-global",
+    default_value = false,
+    order = "d-aa",
   },
   {
     type = "string-setting",

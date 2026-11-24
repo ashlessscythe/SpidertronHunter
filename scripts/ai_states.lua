@@ -2,6 +2,7 @@
 local States = require("scripts.states")
 local settings_mod = require("scripts.settings")
 local util = require("scripts.util")
+local alerts = require("scripts.alerts")
 local movement = require("scripts.movement")
 local scanner = require("scripts.scanner")
 local targeting = require("scripts.targeting")
@@ -20,6 +21,7 @@ local beyond_pursuit = common.beyond_pursuit
 local cancel_ai_pathing = common.cancel_ai_pathing
 local check_tactical_retreat = common.check_tactical_retreat
 local check_low_ammo = common.check_low_ammo
+local resupply_blocker = common.resupply_blocker
 local retreat_origin_position = common.retreat_origin_position
 local COMBAT_REACQUIRE_RADIUS = common.COMBAT_REACQUIRE_RADIUS
 local ARRIVAL_RADIUS = common.ARRIVAL_RADIUS
@@ -231,7 +233,7 @@ States.register(States.MOVING, {
       release_claim(ai)
       return after_combat_clear(ai)
     end
-    if util.distance(spidertron.position, target.position) <= settings_mod.get().combat_range * 1.15 then
+    if util.distance(spidertron.position, target.position) <= combat.effective_range(ai, spidertron, settings_mod.get()) * 1.15 then
       ai.post_combat_since = nil
       return States.ATTACKING
     end
@@ -277,7 +279,7 @@ States.register(States.ATTACKING, {
       return low_ammo
     end
 
-    local combat_range = settings_mod.get().combat_range
+    local combat_range = combat.effective_range(ai, spidertron, settings_mod.get())
     local target = ai.target_entity
     if target and target.valid and not beyond_pursuit(ai, target.position) then
       ai.post_combat_since = nil
@@ -379,6 +381,14 @@ States.register(States.RESTOCKING, {
         ai.wait_reason = "scout-idle"
         return States.WAITING
       end
+      -- Gave up waiting (timeout / no logistics network). Do not go back out until the hunter is
+      -- actually fit to fight; otherwise it ping-pongs home <-> field with no ammo.
+      local blocker = resupply_blocker(ai)
+      if blocker then
+        ai.wait_reason = blocker
+        alerts.notify(ai.entity, blocker == "no-ammo" and "out-of-ammo" or "needs-repair", ai)
+        return States.WAITING
+      end
       if cfg.reengage_after_retreat and ai.retreat_origin then
         return States.REENGAGING
       end
@@ -437,6 +447,22 @@ States.register(States.WAITING, {
     local spidertron = ai.entity
     if not util.is_valid_spidertron(spidertron) then
       return
+    end
+
+    -- Parked at home after a failed restock: resume once ammo / health are back.
+    if ai.wait_reason == "no-ammo" or ai.wait_reason == "damaged" then
+      local blocker = resupply_blocker(ai)
+      if blocker then
+        ai.wait_reason = blocker
+        alerts.notify(spidertron, blocker == "no-ammo" and "out-of-ammo" or "needs-repair", ai)
+        return
+      end
+      ai.wait_reason = nil
+      if settings_mod.get().reengage_after_retreat and ai.retreat_origin then
+        return States.REENGAGING
+      end
+      ai.retreat_origin = nil
+      return States.PATROL
     end
 
     -- Manager / follow-player: stay until another order clears follow.

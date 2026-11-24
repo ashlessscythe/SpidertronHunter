@@ -146,6 +146,32 @@ describe("hunter behaviour", function()
   test("retreat raises a custom alert for the player", function() retreat_scenario("important", true) end)
   test("no alert when alerts are off", function() retreat_scenario("off", false) end)
 
+  test("hunter keeps away from a heavily defended nest and says so", function()
+    zoom_to(40, 0, 0.3)
+    game.connected_players[1].remove_alert({ type = defines.alert_type.custom })
+    local spider = spawn_hunter(0, 0)
+    local nest = {}
+    for i = 1, 4 do -- 4 x behemoth worm = 120 danger points > a 3000 hp spidertron's ~100
+      nest[i] = spawn_enemy("behemoth-worm-turret", 80 + (i % 2) * 8, (i - 2) * 8)
+    end
+    call("enable", spider)
+    local start_tick = game.tick
+    local alert_seen = false
+    async(60 * 30)
+    on_tick(function()
+      assert(spider.valid, "spider died")
+      for _, w in ipairs(nest) do assert(w.valid, "hunter attacked a nest it should avoid") end
+      assert(distance(spider.position, { x = 80, y = 0 }) > 50,
+        "hunter closed in on the nest: " .. serpent.line(spider.position))
+      -- custom alerts fade after a few seconds, so catch it when it appears
+      if custom_alert_count() >= 1 then alert_seen = true end
+      if game.tick - start_tick > 60 * 15 then
+        assert(alert_seen, "no 'avoiding a nest' alert")
+        done()
+      end
+    end)
+  end)
+
   test("scout reaches its waypoint and charts it without attacking", function()
     zoom_to(0, -40, 0.3)
     -- scouts must be unarmed: no ammo inserted
