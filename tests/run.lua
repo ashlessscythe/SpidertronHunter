@@ -3,6 +3,40 @@
 
 local harness = require("tests.harness")
 
+local USAGE = [[
+Usage: lua tests/run.lua [--list] [--run <text>]... [text...]
+  --list, -l        print test names without running them
+  --run, -r <text>  run only tests whose name contains <text> (case-insensitive; repeatable;
+                    bare arguments work too)
+  --help, -h        show this help
+]]
+do
+  local patterns, list_only, i = {}, false, 1
+  while arg and i <= #arg do
+    local a = arg[i]
+    if a == "--list" or a == "-l" then
+      list_only = true
+    elseif a == "--run" or a == "-r" then
+      i = i + 1
+      if not arg[i] then
+        io.stderr:write("missing value for " .. a .. "\n" .. USAGE)
+        os.exit(2)
+      end
+      patterns[#patterns + 1] = arg[i]
+    elseif a == "--help" or a == "-h" then
+      io.write(USAGE)
+      os.exit(0)
+    elseif a:sub(1, 1) == "-" then
+      io.stderr:write("unknown option " .. a .. "\n" .. USAGE)
+      os.exit(2)
+    else
+      patterns[#patterns + 1] = a
+    end
+    i = i + 1
+  end
+  harness.configure({ patterns = patterns, list_only = list_only })
+end
+
 package.path = "./?.lua;./?/init.lua;" .. package.path
 
 -- Minimal Factorio-ish globals used by required modules.
@@ -1553,10 +1587,15 @@ end)
 require("tests.pathfinder_spec")
 require("tests.alerts_spec")
 require("tests.threat_spec")
+require("tests.scanner_spec")
 require("tests.resupply_spec")
 require("tests.combat_spec")
 
 ---------------------------------------------------------------------------
+
+if harness.is_list_only() then
+  os.exit(0)
+end
 
 if not harness.summary() then
   os.exit(1)

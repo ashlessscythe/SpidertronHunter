@@ -4,6 +4,22 @@ All notable changes to Spidertron Hunter are documented here.
 
 ## [Unreleased]
 
+## [0.2.15] - 2026-11-24
+
+### Added
+
+- Fleet stress tests (50 and 100 hunters against 10 nests across a lake, tagged `stress`, excluded from the default run) check the think stagger and path queue budgets, that no hunter is starved, and log the Lua time of the mod's periodic handlers.
+
+### Changed
+
+- In "nearest" targeting mode, a hunter whose nearest nest is too dangerous now falls back to the next-nearest safe target instead of idling.
+
+### Developer
+
+- Test runners take `--list` and `--run <text>` to list or select tests; the watch script also takes `--speed <n>`.
+- The watch script works again on macOS Factorio 2.1.25 (the generated test config needs a `[sound]` setting).
+- Multi-nest campaigns only require kiting on nests the hunter spent at least 8 s near.
+
 ## [0.2.14] - 2026-11-23
 
 ### Fixed

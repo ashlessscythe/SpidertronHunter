@@ -172,6 +172,23 @@ describe("hunter behaviour", function()
     end)
   end)
 
+  test("nearest mode falls back to a safe nest past a dangerous nearer one", function()
+    zoom_to(40, 60, 0.2)
+    local spider = spawn_hunter(0, 0)
+    local danger, safe = {}, nil
+    for i = 1, 4 do -- nearer nest, too dangerous for this hunter
+      danger[i] = spawn_enemy("behemoth-worm-turret", 60 + (i % 2) * 8, (i - 2) * 8)
+    end
+    safe = spawn_enemy("biter-spawner", 0, 110) -- farther, harmless
+    call("enable", spider)
+    async(60 * 90)
+    on_tick(function()
+      assert(spider.valid, "spider died")
+      for _, w in ipairs(danger) do assert(w.valid, "hunter attacked the dangerous nest") end
+      if not safe.valid then done() end
+    end)
+  end)
+
   test("scout reaches its waypoint and charts it without attacking", function()
     zoom_to(0, -40, 0.3)
     -- scouts must be unarmed: no ammo inserted

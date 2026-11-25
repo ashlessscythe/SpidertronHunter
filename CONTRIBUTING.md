@@ -15,7 +15,9 @@ Optional soft dependencies: Spidertron Patrols, Spidertron Enhancements, Space A
 Pure Lua tests (no Factorio required):
 
 ```bash
-lua tests/run.lua
+lua tests/run.lua                    # everything
+lua tests/run.lua --list             # print test names
+lua tests/run.lua --run scanner      # only tests whose name contains "scanner" (repeatable, or bare args)
 ```
 
 In-game tests ([factorio-test](https://github.com/GlassBricks/FactorioTest), headless Factorio 2.1 in Docker; needs Docker and a Factorio login, read from your local `player-data.json` or `FACTORIO_USERNAME` / `FACTORIO_TOKEN`):
@@ -23,6 +25,10 @@ In-game tests ([factorio-test](https://github.com/GlassBricks/FactorioTest), hea
 ```bash
 scripts/run_factorio_tests.sh                                   # all non-visual tests
 scripts/run_factorio_tests.sh run --mod-path . --tag-whitelist visual   # visual scenarios, fast
+scripts/run_factorio_tests.sh --run "hunters, 10 nests" -v     # fleet stress tests (tag "stress"); -v shows the timing log
+scripts/run_factorio_tests.sh --list                            # list test names (no Docker)
+scripts/run_factorio_tests.sh --run "keeps away"                # only matching tests, visual ones too (Lua patterns, repeatable)
+scripts/watch_factorio_tests.sh --run "falls back"              # watch just those in a real window
 scripts/watch_factorio_tests.sh                                 # watch visual scenarios in a real window (local Factorio 2.1.24+)
 ```
 

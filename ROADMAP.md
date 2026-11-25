@@ -6,8 +6,8 @@ Ideas and planned work for Spidertron Hunter. Nothing here is a commitment; item
 
 Suggested order (2026-11-23):
 
-1. [ ] **"Nearest" mode fallback**: when the nearest nest is too dangerous, fall back to the next safe target instead of idling.
-2. [ ] **50+ hunter UPS stress test**: check the per-tick budgets hold before building squads.
+1. [x] **"Nearest" mode fallback**: when the nearest nest is too dangerous, fall back to the next safe target instead of idling.
+2. [x] **50+ hunter UPS stress test**: check the per-tick budgets hold before building squads.
 3. [ ] **Ammo and fuel logic**: low fuel return, per-weapon ammo, "minimum loadout" setting.
 4. [ ] **Mid-fight retreat** from a nest that turns out worse than judged.
 5. [ ] **Squads / formations**, then **guard zones**.

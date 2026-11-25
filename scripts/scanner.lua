@@ -11,6 +11,8 @@ local M = {}
 --- (otherwise hunters go blind until the player re-enables and resets home).
 local NEAR_HOME_THRESHOLD = 64
 
+M.FALLBACK_MAX_JUDGED = 64
+
 local TYPE_PRIORITY = {
   ["unit-spawner"] = 1,
   ["turret"] = 2,
@@ -39,6 +41,42 @@ local function allowed_target(home, spider_pos, enemy_pos, max_pursuit, search_r
     return util.distance(home, enemy_pos) <= max_pursuit
   end
   return true
+end
+
+--- Next-nearest acceptable enemy after the nearest one was rejected. Looks at `max_judged`
+--- candidates (nearest first); judgements are remembered per zone, so the many enemies of one
+--- rejected nest cost a table lookup each and only a new nest costs an area query.
+--- @param spidertron LuaEntity
+--- @param spider_pos MapPosition
+--- @param radius number
+--- @param acceptable fun(pos: MapPosition): boolean
+--- @param max_judged integer
+--- @return LuaEntity?
+function M.find_fallback_target(spidertron, spider_pos, radius, acceptable, max_judged)
+  local found = spidertron.surface.find_entities_filtered({
+    position = spider_pos,
+    radius = radius,
+    type = { "unit-spawner", "turret", "unit", "spider-unit" },
+    force = "enemy",
+    limit = 200,
+  })
+  local candidates = {}
+  for i = 1, #found do
+    local e = found[i]
+    if e.valid then
+      candidates[#candidates + 1] = { entity = e, dsq = util.distance_squared(spider_pos, e.position) }
+    end
+  end
+  table.sort(candidates, function(a, b)
+    return a.dsq < b.dsq
+  end)
+  for i = 1, math.min(#candidates, max_judged) do
+    local e = candidates[i].entity
+    if acceptable(e.position) then
+      return e
+    end
+  end
+  return nil
 end
 
 --- @param ai table
@@ -118,6 +156,16 @@ function M.scan_for_enemy(ai)
     if acceptable(nearest.position) then
       targeting.remember(nearest)
       return nearest
+    end
+    -- The nearest enemy sits in a nest judged too dangerous: fall back to the next-nearest
+    -- target that is acceptable instead of idling. Verdicts cover a whole nest, so enemies
+    -- in the same zone are rejected without another area query.
+    if cfg.enemy_prioritization == "nearest" then
+      local fallback = M.find_fallback_target(spidertron, spider_pos, radius, acceptable, M.FALLBACK_MAX_JUDGED)
+      if fallback then
+        targeting.remember(fallback)
+        return fallback
+      end
     end
   end
 

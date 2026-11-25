@@ -79,6 +79,6 @@ jobs:
           FACTORIO_TOKEN: ${{ secrets.FACTORIO_TOKEN }}
 
       - name: Smoke tests
-        run: npx factorio-test run --mod-path . --tag-blacklist visual
+        run: npx factorio-test run --mod-path . --tag-blacklist visual stress
       - name: Hunter scenarios (visual-tagged, headless)
         run: npx factorio-test run --mod-path . --tag-whitelist visual

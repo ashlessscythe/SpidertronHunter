@@ -69,6 +69,18 @@ run Lua on every tree/rock death.
 `util.for_n_of` processes at most `sh-spiders-per-think` spiders per scan interval.
 Cursor persists in `storage.think_cursor` so large fleets amortize over time.
 
+## Fleet stress results (2026-11-24)
+
+`tests/factorio/stress.lua` (50 and 100 hunters, 10 nests, a lake between them), headless Factorio 2.1.25
+in Docker on amd64 emulation (so absolute times are pessimistic). Steady state:
+
+- `think_all` (8 hunters per call, once a second): ~0.15-0.3 ms per call at 50 hunters, ~0.2-0.4 ms at 100.
+  The first call after enabling a fleet costs ~0.8 ms (cold target cache and threat assessments).
+- Path budget handler: ~0.0006 ms per tick; the queue never backed up.
+- Cost per call is flat because `spiders_per_think` caps it; the price of a bigger fleet is latency,
+  not UPS: each hunter is revisited every `fleet / 8` seconds (about 12 s at 100 hunters).
+  Raise `sh-spiders-per-think` if hunters feel sluggish.
+
 ## Player remote vs AI (2026-07-21)
 
 Bug: PATROL pulled spiders home whenever >32 tiles from home, so after a player
